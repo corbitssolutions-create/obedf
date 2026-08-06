@@ -7,26 +7,6 @@ import logger from './src/utils/logger.js';
 // Load environment variables
 dotenv.config();
 
-// Connect to Database
-await connectDB();
-
-// Seed default administrator
-await seedAdmin();
-
-// ── Migrate: rename legacy 'Viewer' role → 'Operation Manager' ───────────────
-try {
-  const { default: User } = await import('./src/models/User.js');
-  const result = await User.updateMany(
-    { role: 'Viewer' },
-    { $set: { role: 'Operation Manager' } }
-  );
-  if (result.modifiedCount > 0) {
-    logger.info(`[MIGRATE] ${result.modifiedCount} user(s) migrated from Viewer → Operation Manager`);
-  }
-} catch (e) {
-  console.warn('[MIGRATE] Role migration skipped:', e.message);
-}
-
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -39,6 +19,28 @@ Environment: ${NODE_ENV}
 
   // Log server startup in audit log
   await logger.audit('SERVER_STARTUP', `Freight Flow Backend started on port ${PORT} in ${NODE_ENV} environment`);
+
+  // Connect to Database & seed
+  try {
+    await connectDB();
+    await seedAdmin();
+
+    // ── Migrate: rename legacy 'Viewer' role → 'Operation Manager' ───────────────
+    try {
+      const { default: User } = await import('./src/models/User.js');
+      const result = await User.updateMany(
+        { role: 'Viewer' },
+        { $set: { role: 'Operation Manager' } }
+      );
+      if (result.modifiedCount > 0) {
+        logger.info(`[MIGRATE] ${result.modifiedCount} user(s) migrated from Viewer → Operation Manager`);
+      }
+    } catch (e) {
+      console.warn('[MIGRATE] Role migration skipped:', e.message);
+    }
+  } catch (err) {
+    logger.error('Startup initialization failed:', err);
+  }
 });
 
 // Handle unhandled promise rejections

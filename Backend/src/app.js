@@ -43,12 +43,14 @@ app.use(helmet());
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.CLIENT_URL
-  ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  ? process.env.CLIENT_URL.split(',').map((url) => url.trim().replace(/\/+$/, ''))
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://obedf.vercel.app'];
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+    if (!origin) return cb(null, true);
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
       return cb(null, true);
     }
     return cb(new Error(`Not allowed by CORS: ${origin}`));

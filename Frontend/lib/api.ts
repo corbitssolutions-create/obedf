@@ -4,7 +4,8 @@
  * and Authorization header are set in exactly one place.
  */
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const rawApiBase = process.env.NEXT_PUBLIC_API_URL || "https://obedf-1.onrender.com";
+export const API_BASE = rawApiBase.replace(/\/+$/, "");
 
 /** Returns the JWT bearer header if a token is stored, otherwise {}. */
 export function authHeader(): Record<string, string> {
