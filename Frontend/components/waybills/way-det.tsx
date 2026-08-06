@@ -269,7 +269,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const scanRef     = useRef<HTMLInputElement>(null);
   const lastScanRef = useRef<{value:string;time:number}|null>(null);
   const draftChecked = useRef(false);
-  const manualDraft = useRef({ id:"", productCode:"", description:"", qty:"1", weight:"", length:"", width:"", height:"" });
+  const [manualDraft, setManualDraft] = useState({ id:"", productCode:"", description:"", qty:"1", weight:"", length:"", width:"", height:"" });
 
   /* ── Initial data load ── */
   useEffect(() => {
@@ -959,35 +959,35 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
             {panel === "manual" && (
               <div className="mb-4 space-y-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <input placeholder="Parcel No." value={manualDraft.current.id}
-                    onChange={e => { manualDraft.current.id = e.target.value; }}
+                  <input placeholder="Parcel No." value={manualDraft.id}
+                    onChange={e => { setManualDraft(prev => ({ ...prev, id: e.target.value })); }}
                     className={`${inputCls} sm:col-span-2`} />
-                  <input placeholder="Product Code" value={manualDraft.current.productCode}
-                    onChange={e => { manualDraft.current.productCode = e.target.value; }}
+                  <input placeholder="Product Code" value={manualDraft.productCode}
+                    onChange={e => { setManualDraft(prev => ({ ...prev, productCode: e.target.value })); }}
                     className={inputCls} />
-                  <input type="number" placeholder="Qty" value={manualDraft.current.qty}
-                    onChange={e => { manualDraft.current.qty = e.target.value; }}
+                  <input type="number" placeholder="Qty" value={manualDraft.qty}
+                    onChange={e => { setManualDraft(prev => ({ ...prev, qty: e.target.value })); }}
                     className={inputCls} />
                 </div>
-                <input placeholder="Description" value={manualDraft.current.description}
-                  onChange={e => { manualDraft.current.description = e.target.value; }}
+                <input placeholder="Description" value={manualDraft.description}
+                  onChange={e => { setManualDraft(prev => ({ ...prev, description: e.target.value })); }}
                   className={inputCls} />
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {(["weight","length","width","height"] as const).map(f => (
                     <input key={f} type="number" placeholder={`${f.charAt(0).toUpperCase()+f.slice(1)}${f==="weight"?" kg":" cm"}`}
-                      value={(manualDraft.current as any)[f]}
-                      onChange={e => { (manualDraft.current as any)[f] = e.target.value; }}
+                      value={(manualDraft as any)[f]}
+                      onChange={e => { setManualDraft(prev => ({ ...prev, [f]: e.target.value })); }}
                       className={inputCls} />
                   ))}
                 </div>
                 <button onClick={() => {
                   if (parcelsFull) return;
-                  const d = manualDraft.current;
+                  const d = manualDraft;
                   const id = d.id.trim() || `PRC${String(10001 + form.parcels.length)}`;
                   addParcel({ id, productCode: d.productCode.trim(), description: d.description.trim(),
                     qty: parseInt(d.qty)||1, weight: parseFloat(d.weight)||0,
                     length: parseFloat(d.length)||0, width: parseFloat(d.width)||0, height: parseFloat(d.height)||0 });
-                  Object.assign(manualDraft.current, { id:"", productCode:"", description:"", qty:"1", weight:"", length:"", width:"", height:"" });
+                  setManualDraft({ id:"", productCode:"", description:"", qty:"1", weight:"", length:"", width:"", height:"" });
                 }} disabled={parcelsFull}
                   className="flex w-full items-center justify-center gap-1 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:bg-gray-300">
                   <Plus className="h-4 w-4" /> Add Parcel
