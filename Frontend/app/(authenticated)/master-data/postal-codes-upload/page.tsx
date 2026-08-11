@@ -1,4 +1,6 @@
-import UnderConstruction from "@/components/ui/UnderConstruction";
+"use client";
+import PostalCodesPage from "@/components/master/pages/PostalCodesPage";
 export default function Page() {
-  return <UnderConstruction module="Postal Codes Upload" />;
+  return <PostalCodesPage />;
 }
+

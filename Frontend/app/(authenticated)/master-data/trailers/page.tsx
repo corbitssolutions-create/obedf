@@ -1,4 +1,6 @@
-import UnderConstruction from "@/components/ui/UnderConstruction";
+"use client";
+import TrailersPage from "@/components/master/pages/TrailersPage";
 export default function Page() {
-  return <UnderConstruction module="Trailers" />;
+  return <TrailersPage />;
 }
+

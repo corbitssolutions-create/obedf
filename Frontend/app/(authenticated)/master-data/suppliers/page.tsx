@@ -1,4 +1,6 @@
-import UnderConstruction from "@/components/ui/UnderConstruction";
+"use client";
+import SuppliersPage from "@/components/master/pages/SuppliersPage";
 export default function Page() {
-  return <UnderConstruction module="Suppliers" />;
+  return <SuppliersPage />;
 }
+

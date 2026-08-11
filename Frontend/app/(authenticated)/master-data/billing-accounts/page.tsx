@@ -1,4 +1,6 @@
-import UnderConstruction from "@/components/ui/UnderConstruction";
+"use client";
+import BillingAccountsPage from "@/components/master/pages/BillingAccountsPage";
 export default function Page() {
-  return <UnderConstruction module="Billing Accounts" />;
+  return <BillingAccountsPage />;
 }
+
