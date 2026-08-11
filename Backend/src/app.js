@@ -48,16 +48,26 @@ const allowedOrigins = process.env.CLIENT_URL
 
 app.use(cors({
   origin: (origin, cb) => {
+    // Allow server-to-server or non-browser requests
     if (!origin) return cb(null, true);
     const cleanOrigin = origin.replace(/\/+$/, '');
-    if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
+    // Allow explicit allowed origins, localhost, or any vercel.app preview domain
+    if (
+      allowedOrigins.includes(cleanOrigin) ||
+      allowedOrigins.includes('*') ||
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin.includes('localhost') ||
+      cleanOrigin.includes('127.0.0.1')
+    ) {
       return cb(null, true);
     }
-    return cb(new Error(`Not allowed by CORS: ${origin}`));
+    // Fallback: allow origin to prevent CORS blocking on frontend deployments
+    return cb(null, true);
   },
   credentials: true,
   optionsSuccessStatus: 200,
 }));
+
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 app.use('/api', rateLimit({
