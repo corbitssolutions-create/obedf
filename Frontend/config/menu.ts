@@ -3,7 +3,6 @@ import {
   Box,
   FileText,
   Truck,
-  Package,
   ArrowLeftRight,
   ClipboardCheck,
   Receipt,
@@ -22,8 +21,6 @@ import {
   Building2,
   ShieldCheck,
   UserCog,
-  Lock,
-  ScrollText,
   Settings,
   Table2,
   type LucideIcon,
@@ -68,15 +65,6 @@ const menu: MenuItem[] = [
         ],
       },
       {
-        title: "Collections",
-        icon: Package,
-        children: [
-          { title: "Adhoc Collection",    href: "/operations/collections/adhoc-collection" },
-          { title: "Collection Manifest", href: "/operations/collections/collection-manifest" },
-          { title: "Collection Debrief",  href: "/operations/collections/collection-debrief" },
-        ],
-      },
-      {
         title: "Branch Transfers",
         icon: ArrowLeftRight,
         children: [
@@ -104,7 +92,6 @@ const menu: MenuItem[] = [
         icon: FileStack,
         children: [
           { title: "Generate Invoice", href: "/billing/invoices/generate" },
-          { title: "Search Invoice",   href: "/billing/invoices/search" },
         ],
       },
       {
@@ -157,9 +144,6 @@ const menu: MenuItem[] = [
     icon: ShieldCheck,
     children: [
       { title: "Users",         href: "/admin/users",         icon: Users },
-      { title: "Roles",         href: "/admin/roles",         icon: UserCog },
-      { title: "Permissions",   href: "/admin/permissions",   icon: Lock },
-      { title: "Audit Trail",   href: "/admin/audit-trail",   icon: ScrollText },
       { title: "Company",       href: "/admin/company",       icon: Building2 },
       { title: "Master Tables", href: "/admin/master-tables", icon: Table2 },
       { title: "Settings",      href: "/admin/settings",      icon: Settings },

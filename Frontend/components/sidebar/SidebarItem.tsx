@@ -80,20 +80,19 @@ export default function SidebarItem({
       href={href}
       onClick={onNavigate}
       className={`
-        relative flex h-8 items-center gap-2.5 rounded-md pr-3 text-sm
+        group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm
         transition-all duration-150
-        ${depth === 1 ? "pl-3" : "pl-3"}
         ${
           active
-            ? "font-semibold text-white"
-            : "text-slate-400 hover:text-white"
+            ? "font-semibold text-white bg-white/[0.06]"
+            : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
         }
       `}
     >
-      {/* Blue dot — matches image exactly */}
+      {/* Bullet dot */}
       <span
-        className={`h-[7px] w-[7px] shrink-0 rounded-full transition-colors duration-150 ${
-          active ? "bg-blue-400" : "bg-slate-500 group-hover:bg-slate-400"
+        className={`h-[6px] w-[6px] shrink-0 rounded-full transition-colors duration-150 ${
+          active ? "bg-blue-400" : "bg-slate-500 group-hover:bg-slate-300"
         }`}
       />
       <span className="truncate leading-snug">{title}</span>

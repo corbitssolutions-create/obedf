@@ -83,16 +83,15 @@ export default function SidebarGroup({
   ───────────────────────────────────────────── */
 
   // Padding per depth level
-  const headerPad =
-    isTopLevel ? "px-3.5" : depth === 1 ? "pl-[14px] pr-3" : "pl-5 pr-3";
+  const headerPad = isTopLevel ? "px-3.5" : "px-2.5";
 
   // Header row height
-  const headerH = isTopLevel ? "h-10" : "h-9";
+  const headerH = isTopLevel ? "h-10" : "h-8.5";
 
   // Header text style
   const headerText = isTopLevel
     ? "text-sm font-semibold text-slate-200"
-    : "text-sm font-semibold text-slate-300";
+    : "text-sm font-medium text-slate-300";
 
   return (
     <div>
@@ -112,7 +111,7 @@ export default function SidebarGroup({
           }
         `}
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           {Icon && (
             <Icon
               size={isTopLevel ? 17 : 15}
@@ -142,10 +141,10 @@ export default function SidebarGroup({
             mt-0.5 space-y-0.5 overflow-hidden
             ${
               isTopLevel
-                ? /* top-level children: left border tree line */
-                  "ml-[22px] border-l border-white/[0.09] pl-2"
-                : /* sub-group children: slightly deeper indent */
-                  "ml-[18px] border-l border-white/[0.07] pl-2"
+                ? /* top-level children: vertical tree line */
+                  "ml-[22px] border-l border-white/[0.09] pl-1.5"
+                : /* sub-group children: keep aligned along parent tree line without extra shift */
+                  "ml-0 border-l-0 pl-0"
             }
           `}
         >
