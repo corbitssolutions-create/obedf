@@ -1,4 +1,5 @@
-import UnderConstruction from "@/components/ui/UnderConstruction";
+import CreditDebitPage from "@/components/finance/credit-debit/CreditDebitPage";
+
 export default function Page() {
-  return <UnderConstruction module="Generate Credit / Debit Note" />;
+  return <CreditDebitPage />;
 }

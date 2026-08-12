@@ -1,4 +1,5 @@
-import UnderConstruction from "@/components/ui/UnderConstruction";
+import InvoicesPage from "@/components/finance/invoices/InvoicesPage";
+
 export default function Page() {
-  return <UnderConstruction module="Generate Invoice" />;
+  return <InvoicesPage />;
 }

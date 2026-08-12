@@ -8,6 +8,7 @@ import {
   LayoutDashboard, Box, FileText, Truck, ArrowLeftRight, ClipboardList,
   Receipt, Banknote, FileSignature, BarChart3, Settings, ShieldCheck,
   ChevronDown, ChevronRight, LogOut, type LucideIcon,
+  MapPin,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -82,6 +83,7 @@ const menuConfig: MenuNode[] = [
     children: [{ title: "Quotation Maintenance", href: "/quote/quotation-maintenance" }],
   },
   { title: "Reports", href: "/reports", icon: BarChart3 },
+  { title: "Map", href: "/map-route", icon: MapPin },
   {
     title: "Master Data",
     icon: Settings,

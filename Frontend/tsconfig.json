@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "components/manifests/create-mani.jsx", "components/manifests/manifest.tsx", "components/vechile/vechile.jsx", "components/driver-route/d-rout.jsx", "components/settings/set.jsx", "components/users/user.jsx"  ],
+, "components/manifests/create-mani.jsx", "components/manifests/manifest.tsx", "components/vechile/vechile.jsx", "components/driver-route/d-rout.jsx", "components/settings/set.jsx", "components/users/user.jsx", "app/(authenticated)/map-route/page.jsx"  ],
   "exclude": ["node_modules"]
 }
