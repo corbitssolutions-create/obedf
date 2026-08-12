@@ -44,15 +44,6 @@ const menuConfig: MenuNode[] = [
         ],
       },
       {
-        title: "Collections",
-        icon: Box,
-        children: [
-          { title: "Adhoc Collection", href: "/operations/collections/adhoc-collection" },
-          { title: "Collection Manifest", href: "/operations/collections/collection-manifest" },
-          { title: "Collection Debrief", href: "/operations/collections/collection-debrief" },
-        ],
-      },
-      {
         title: "Branch Transfers",
         icon: ArrowLeftRight,
         children: [
@@ -76,7 +67,6 @@ const menuConfig: MenuNode[] = [
         icon: FileText,
         children: [
           { title: "Generate Invoice", href: "/billing/invoices/generate" },
-          { title: "Search Invoice", href: "/billing/invoices/search" },
         ],
       },
       {
@@ -113,9 +103,7 @@ const menuConfig: MenuNode[] = [
     icon: ShieldCheck,
     children: [
       { title: "Users", href: "/admin/users" },
-      { title: "Roles", href: "/admin/roles" },
       { title: "Permissions", href: "/admin/permissions" },
-      { title: "Audit Trail", href: "/admin/audit-trail" },
       { title: "Company", href: "/admin/company" },
       { title: "Master Tables", href: "/admin/master-tables" },
       { title: "Settings", href: "/admin/settings" },
