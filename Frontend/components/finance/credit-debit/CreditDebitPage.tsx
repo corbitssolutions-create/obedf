@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Plus, Download, Filter, Search, X, ChevronDown, MoreHorizontal,
   FileText, Eye, Pencil, Trash2, ArrowDownLeft, ArrowUpRight,
   DollarSign, AlertCircle, CheckCircle2, Clock, RotateCcw,
   Calendar, Building2, User, Hash, AlignLeft, ChevronRight,
   Banknote, TrendingUp, TrendingDown, Minus, Printer,
-  XCircle, CheckCheck, RefreshCw,
+  XCircle, CheckCheck, RefreshCw, Check
 } from "lucide-react";
+import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type NoteType = "Credit" | "Debit";
@@ -22,7 +23,7 @@ type ReasonType =
   | "Other";
 
 interface CreditDebitNote {
-  id: string;
+  _id: string;
   noteNo: string;
   type: NoteType;
   customer: string;
@@ -37,21 +38,16 @@ interface CreditDebitNote {
   appliedDate?: string;
 }
 
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
-const MOCK_NOTES: CreditDebitNote[] = [
-  { id: "1",  noteNo: "CN-2026-00124", type: "Credit", customer: "Build It Centurion",     invoiceRef: "INV-2026-00891", date: "29 Jul 2026", amount: 4250,  status: "Applied",   reason: "Pricing Adjustment",  description: "Rate correction for overcharged freight services on July delivery run.", branch: "Johannesburg DC", createdBy: "Admin User", appliedDate: "30 Jul 2026" },
-  { id: "2",  noteNo: "DN-2026-00087", type: "Debit",  customer: "Takealot Midrand",        invoiceRef: "INV-2026-00782", date: "28 Jul 2026", amount: 2850,  status: "Pending",   reason: "Freight Adjustment",  description: "Additional handling charges for oversized cargo on manifest DM-00451.", branch: "Pretoria DC",    createdBy: "Finance User", appliedDate: undefined },
-  { id: "3",  noteNo: "CN-2026-00123", type: "Credit", customer: "Westgate Mall",           invoiceRef: "INV-2026-00765", date: "27 Jul 2026", amount: 1850,  status: "Applied",   reason: "Damaged Goods",      description: "Credit issued for 3 parcels damaged in transit, as per POD-00221.", branch: "Cape Town DC",   createdBy: "Admin User", appliedDate: "28 Jul 2026" },
-  { id: "4",  noteNo: "DN-2026-00086", type: "Debit",  customer: "Soshanguve Retail",       invoiceRef: "INV-2026-00741", date: "26 Jul 2026", amount: 3200,  status: "Draft",     reason: "Quantity Adjustment", description: "Additional parcels delivered outside original waybill scope.", branch: "Johannesburg DC", createdBy: "Finance User", appliedDate: undefined },
-  { id: "5",  noteNo: "CN-2026-00122", type: "Credit", customer: "Pretoria CBD Store",      invoiceRef: "INV-2026-00730", date: "25 Jul 2026", amount: 950,   status: "Applied",   reason: "Returned Goods",     description: "5 units returned to sender, full freight credit applied.", branch: "Pretoria DC",    createdBy: "Admin User", appliedDate: "26 Jul 2026" },
-  { id: "6",  noteNo: "CN-2026-00121", type: "Credit", customer: "Makro Silverton",         invoiceRef: "INV-2026-00715", date: "24 Jul 2026", amount: 6700,  status: "Applied",   reason: "Pricing Adjustment",  description: "Contract rate applied retrospectively for bulk delivery agreement.", branch: "Johannesburg DC", createdBy: "Admin User", appliedDate: "25 Jul 2026" },
-  { id: "7",  noteNo: "DN-2026-00085", type: "Debit",  customer: "Checkers Montecasino",    invoiceRef: "INV-2026-00698", date: "23 Jul 2026", amount: 1450,  status: "Pending",   reason: "Other",              description: "Fuel surcharge adjustment for remote delivery area.", branch: "Johannesburg DC", createdBy: "Finance User", appliedDate: undefined },
-  { id: "8",  noteNo: "CN-2026-00120", type: "Credit", customer: "Build It Centurion",      invoiceRef: "INV-2026-00681", date: "22 Jul 2026", amount: 2100,  status: "Cancelled", reason: "Other",              description: "Duplicate note created in error — voided.", branch: "Pretoria DC",    createdBy: "Admin User", appliedDate: undefined },
-  { id: "9",  noteNo: "CN-2026-00119", type: "Credit", customer: "Clicks Hatfield",         invoiceRef: "INV-2026-00655", date: "20 Jul 2026", amount: 780,   status: "Applied",   reason: "Freight Adjustment",  description: "Partial credit for late delivery compensation.", branch: "Pretoria DC",    createdBy: "Finance User", appliedDate: "21 Jul 2026" },
-  { id: "10", noteNo: "DN-2026-00084", type: "Debit",  customer: "Takealot Midrand",        invoiceRef: "INV-2026-00640", date: "19 Jul 2026", amount: 5400,  status: "Applied",   reason: "Freight Adjustment",  description: "Fuel surcharge not included in original invoice.", branch: "Johannesburg DC", createdBy: "Admin User", appliedDate: "21 Jul 2026" },
-  { id: "11", noteNo: "CN-2026-00118", type: "Credit", customer: "Woolworths Menlyn",       invoiceRef: "INV-2026-00625", date: "18 Jul 2026", amount: 3300,  status: "Draft",     reason: "Pricing Adjustment",  description: "Pending approval for bulk rate retrospective adjustment.", branch: "Pretoria DC",    createdBy: "Finance User", appliedDate: undefined },
-  { id: "12", noteNo: "DN-2026-00083", type: "Debit",  customer: "Spar Arcadia",            invoiceRef: "INV-2026-00610", date: "17 Jul 2026", amount: 875,   status: "Pending",   reason: "Quantity Adjustment", description: "2 extra pallets loaded, not included in original manifest.", branch: "Johannesburg DC", createdBy: "Admin User", appliedDate: undefined },
-];
+interface CustomerOption {
+  _id: string;
+  name: string;
+}
+
+interface InvoiceOption {
+  _id: string;
+  invoiceNo: string;
+  customer: string;
+}
 
 /* ─── Status config ──────────────────────────────────────────────────────── */
 const STATUS_CONFIG: Record<NoteStatus, { cls: string; dot: string; label: string }> = {
@@ -61,13 +57,12 @@ const STATUS_CONFIG: Record<NoteStatus, { cls: string; dot: string; label: strin
   Cancelled: { cls: "bg-red-50 text-red-600 border-red-100",               dot: "bg-red-400",      label: "Cancelled" },
 };
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
-function fmtCurrency(n: number) {
-  return `R ${n.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function fmtCurrency(n: number = 0) {
+  return `R ${Number(n || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function StatusBadge({ status }: { status: NoteStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.Draft;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold ${cfg.cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
@@ -93,7 +88,6 @@ function TypeBadge({ type }: { type: NoteType }) {
   );
 }
 
-/* ─── TABS ───────────────────────────────────────────────────────────────── */
 type TabKey = "All" | "Credit Notes" | "Debit Notes" | "Draft" | "Applied" | "Cancelled";
 const TABS: TabKey[] = ["All", "Credit Notes", "Debit Notes", "Draft", "Applied", "Cancelled"];
 
@@ -104,13 +98,13 @@ function SummaryCards({ notes }: { notes: CreditDebitNote[] }) {
   const debits      = notes.filter((n) => n.type === "Debit");
   const outstanding = notes
     .filter((n) => n.status === "Pending")
-    .reduce((s, n) => s + n.amount, 0);
+    .reduce((s, n) => s + (n.amount || 0), 0);
 
   const cards = [
     {
       label: "Total Notes",
       value: String(total),
-      sub: "+12 this month",
+      sub: `${total} records`,
       icon: FileText,
       iconBg: "bg-blue-50",
       iconColor: "text-blue-600",
@@ -124,7 +118,7 @@ function SummaryCards({ notes }: { notes: CreditDebitNote[] }) {
       icon: ArrowDownLeft,
       iconBg: "bg-emerald-50",
       iconColor: "text-emerald-600",
-      trend: fmtCurrency(credits.reduce((s, n) => s + n.amount, 0)),
+      trend: fmtCurrency(credits.reduce((s, n) => s + (n.amount || 0), 0)),
       trendUp: true,
     },
     {
@@ -134,7 +128,7 @@ function SummaryCards({ notes }: { notes: CreditDebitNote[] }) {
       icon: ArrowUpRight,
       iconBg: "bg-orange-50",
       iconColor: "text-orange-600",
-      trend: fmtCurrency(debits.reduce((s, n) => s + n.amount, 0)),
+      trend: fmtCurrency(debits.reduce((s, n) => s + (n.amount || 0), 0)),
       trendUp: false,
     },
     {
@@ -158,7 +152,7 @@ function SummaryCards({ notes }: { notes: CreditDebitNote[] }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-500 truncate">{c.label}</p>
-                <p className="mt-1.5 text-2xl font-bold text-gray-900 leading-tight">{c.value}</p>
+                <p className="mt-1.5 text-2xl font-bold text-gray-900 leading-tight tracking-tight">{c.value}</p>
                 <p className="mt-1 text-xs text-gray-400">{c.sub}</p>
               </div>
               <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${c.iconBg}`}>
@@ -166,11 +160,7 @@ function SummaryCards({ notes }: { notes: CreditDebitNote[] }) {
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
-              <span className="text-xs text-gray-400">This month</span>
-              <span className={`flex items-center gap-1 text-xs font-semibold ${c.trendUp ? "text-emerald-600" : "text-orange-600"}`}>
-                {c.trendUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {c.trend}
-              </span>
+              <span className="text-xs text-gray-400 font-medium">{c.trend}</span>
             </div>
           </div>
         );
@@ -179,91 +169,118 @@ function SummaryCards({ notes }: { notes: CreditDebitNote[] }) {
   );
 }
 
-/* ─── Create Note Modal ──────────────────────────────────────────────────── */
-interface CreateNoteModalProps {
+/* ─── Create / Edit Note Modal ───────────────────────────────────────────── */
+function NoteFormModal({
+  initialData,
+  customers,
+  invoices,
+  onClose,
+  onSave,
+}: {
+  initialData?: CreditDebitNote | null;
+  customers: CustomerOption[];
+  invoices: InvoiceOption[];
   onClose: () => void;
-  onSave: (note: Partial<CreditDebitNote>) => void;
-}
-
-function CreateNoteModal({ onClose, onSave }: CreateNoteModalProps) {
-  const [noteType, setNoteType]     = useState<NoteType>("Credit");
-  const [customer, setCustomer]     = useState("");
-  const [invoiceRef, setInvoiceRef] = useState("");
-  const [date, setDate]             = useState(new Date().toISOString().split("T")[0]);
-  const [reason, setReason]         = useState<ReasonType | "">("");
-  const [amount, setAmount]         = useState("");
-  const [description, setDescription] = useState("");
-
+  onSave: (data: Partial<CreditDebitNote>, asDraft: boolean) => Promise<void>;
+}) {
   const inputCls = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition";
   const labelCls = "block text-xs font-semibold text-gray-600 mb-1.5";
 
-  const handleSubmit = (asDraft: boolean) => {
-    onSave({
-      noteNo: noteType === "Credit" ? `CN-2026-${String(Math.floor(Math.random() * 900 + 100)).padStart(5, "0")}` : `DN-2026-${String(Math.floor(Math.random() * 900 + 100)).padStart(5, "0")}`,
-      type: noteType,
-      customer,
-      invoiceRef,
-      date: new Date(date).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }),
-      amount: parseFloat(amount) || 0,
-      status: asDraft ? "Draft" : "Pending",
-      reason: (reason as ReasonType) || "Other",
-      description,
-      branch: "Johannesburg DC",
-      createdBy: "Admin User",
-    });
-    onClose();
+  const [type, setType]             = useState<NoteType>(initialData?.type || "Credit");
+  const [customer, setCustomer]     = useState(initialData?.customer || "");
+  const [invoiceRef, setInvoiceRef] = useState(initialData?.invoiceRef || "");
+  const [date, setDate]             = useState(initialData?.date || new Date().toISOString().split("T")[0]);
+  const [amount, setAmount]         = useState(initialData?.amount ? String(initialData.amount) : "");
+  const [reason, setReason]         = useState<ReasonType>(initialData?.reason || "Pricing Adjustment");
+  const [description, setDesc]      = useState(initialData?.description || "");
+  const [branch, setBranch]         = useState(initialData?.branch || "Johannesburg DC");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg]     = useState("");
+
+  const handleSubmit = async (asDraft: boolean) => {
+    if (!customer.trim()) {
+      setErrorMsg("Please select or enter a customer.");
+      return;
+    }
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setErrorMsg("Please enter a valid positive note amount.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setErrorMsg("");
+      await onSave(
+        {
+          type,
+          customer: customer.trim(),
+          invoiceRef: invoiceRef.trim(),
+          date,
+          amount: numAmount,
+          reason,
+          description: description.trim(),
+          branch,
+          status: asDraft ? "Draft" : (initialData?.status || "Pending"),
+        },
+        asDraft
+      );
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save Credit/Debit note");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl flex flex-col">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600">
-              <Banknote className="h-4.5 w-4.5 text-white h-[18px] w-[18px]" />
+            <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${type === "Credit" ? "bg-emerald-600" : "bg-orange-600"}`}>
+              {type === "Credit" ? <ArrowDownLeft className="h-5 w-5 text-white" /> : <ArrowUpRight className="h-5 w-5 text-white" />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">Create Note</h2>
-              <p className="text-xs text-gray-400">Add a new credit or debit note</p>
+              <h2 className="text-base font-bold text-gray-900">{initialData ? `Edit ${initialData.noteNo}` : `Generate ${type} Note`}</h2>
+              <p className="text-xs text-gray-400">Specify adjustment details and amounts</p>
             </div>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition">
-            <X className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+          <button onClick={onClose} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100">
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-5 flex-1">
-          {/* Note Type Toggle */}
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+          {errorMsg && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 font-semibold text-red-700">
+              {errorMsg}
+            </div>
+          )}
+
+          {/* Type Toggle */}
           <div>
             <label className={labelCls}>Note Type <span className="text-red-400">*</span></label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setNoteType("Credit")}
-                className={`flex items-center gap-3 rounded-xl border-2 p-3.5 text-left transition-all ${noteType === "Credit" ? "border-emerald-400 bg-emerald-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
+                onClick={() => setType("Credit")}
+                className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 font-bold transition ${
+                  type === "Credit" ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
               >
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${noteType === "Credit" ? "bg-emerald-500" : "bg-gray-100"}`}>
-                  <ArrowDownLeft className={`h-4 w-4 ${noteType === "Credit" ? "text-white" : "text-gray-400"}`} />
-                </div>
-                <div>
-                  <p className={`text-sm font-semibold ${noteType === "Credit" ? "text-emerald-700" : "text-gray-700"}`}>Credit Note</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Reduce amount owed</p>
-                </div>
+                <ArrowDownLeft className="h-4 w-4" /> Credit Note
               </button>
               <button
                 type="button"
-                onClick={() => setNoteType("Debit")}
-                className={`flex items-center gap-3 rounded-xl border-2 p-3.5 text-left transition-all ${noteType === "Debit" ? "border-orange-400 bg-orange-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
+                onClick={() => setType("Debit")}
+                className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 font-bold transition ${
+                  type === "Debit" ? "border-orange-600 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
               >
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${noteType === "Debit" ? "bg-orange-500" : "bg-gray-100"}`}>
-                  <ArrowUpRight className={`h-4 w-4 ${noteType === "Debit" ? "text-white" : "text-gray-400"}`} />
-                </div>
-                <div>
-                  <p className={`text-sm font-semibold ${noteType === "Debit" ? "text-orange-700" : "text-gray-700"}`}>Debit Note</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Increase amount owed</p>
-                </div>
+                <ArrowUpRight className="h-4 w-4" /> Debit Note
               </button>
             </div>
           </div>
@@ -271,595 +288,574 @@ function CreateNoteModal({ onClose, onSave }: CreateNoteModalProps) {
           {/* Customer */}
           <div>
             <label className={labelCls}>Customer <span className="text-red-400">*</span></label>
-            <div className="relative">
-              <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
-                placeholder="Search or enter customer name..."
-                className={`${inputCls} pl-9`}
-              />
-            </div>
+            <input
+              list="note-cust-list"
+              value={customer}
+              onChange={(e) => setCustomer(e.target.value)}
+              placeholder="Search or enter customer name..."
+              className={inputCls}
+            />
+            <datalist id="note-cust-list">
+              {customers.map((c) => (
+                <option key={c._id} value={c.name} />
+              ))}
+            </datalist>
           </div>
 
-          {/* Invoice Reference */}
-          <div>
-            <label className={labelCls}>Invoice Reference</label>
-            <div className="relative">
-              <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          {/* Invoice Reference + Date */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Invoice Reference</label>
               <input
+                list="note-inv-list"
                 value={invoiceRef}
                 onChange={(e) => setInvoiceRef(e.target.value)}
                 placeholder="e.g. INV-2026-00891"
-                className={`${inputCls} pl-9`}
+                className={inputCls}
+              />
+              <datalist id="note-inv-list">
+                {invoices.map((inv) => (
+                  <option key={inv._id} value={inv.invoiceNo}>{inv.customer}</option>
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className={labelCls}>Note Date <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="YYYY-MM-DD or DD Mon YYYY"
+                className={inputCls}
               />
             </div>
           </div>
 
-          {/* Date + Reason side by side */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Amount + Reason */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Date <span className="text-red-400">*</span></label>
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} pl-9`} />
-              </div>
-            </div>
-            <div>
-              <label className={labelCls}>Reason <span className="text-red-400">*</span></label>
-              <div className="relative">
-                <select
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value as ReasonType)}
-                  className={`${inputCls} appearance-none pr-8`}
-                >
-                  <option value="">Select reason...</option>
-                  {(["Pricing Adjustment","Damaged Goods","Returned Goods","Quantity Adjustment","Freight Adjustment","Other"] as ReasonType[]).map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              </div>
-            </div>
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className={labelCls}>Amount <span className="text-red-400">*</span></label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500">R</span>
+              <label className={labelCls}>Amount (R) <span className="text-red-400">*</span></label>
               <input
                 type="number"
-                min="0"
                 step="0.01"
+                min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className={`${inputCls} pl-7`}
+                className={inputCls}
               />
             </div>
+
+            <div>
+              <label className={labelCls}>Reason <span className="text-red-400">*</span></label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value as ReasonType)}
+                className={`${inputCls} appearance-none pr-8`}
+              >
+                {[
+                  "Pricing Adjustment",
+                  "Damaged Goods",
+                  "Returned Goods",
+                  "Quantity Adjustment",
+                  "Freight Adjustment",
+                  "Other",
+                ].map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Branch */}
+          <div>
+            <label className={labelCls}>Branch</label>
+            <select
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              className={inputCls}
+            >
+              {["Johannesburg DC", "Pretoria DC", "Cape Town DC", "Durban DC", "Head Office"].map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
           </div>
 
           {/* Description */}
           <div>
-            <label className={labelCls}>Description</label>
+            <label className={labelCls}>Description / Details</label>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Provide a brief description of the reason for this note..."
+              value={description}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Provide context or explanation for this note..."
               className={`${inputCls} resize-none`}
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 shrink-0">
-          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
+        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
+          <button onClick={onClose} disabled={submitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
             Cancel
           </button>
-          <button onClick={() => handleSubmit(true)} className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+          <button onClick={() => handleSubmit(true)} disabled={submitting} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">
             Save Draft
           </button>
           <button
             onClick={() => handleSubmit(false)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm shadow-blue-900/20 transition"
+            disabled={submitting}
+            className={`rounded-lg px-4 py-2 text-xs font-semibold text-white shadow-sm ${
+              type === "Credit" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-orange-600 hover:bg-orange-700"
+            }`}
           >
-            <CheckCheck className="h-4 w-4" />
-            Create Note
+            {submitting ? "Processing..." : (initialData ? "Update Note" : `Create ${type} Note`)}
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Note Details Drawer ────────────────────────────────────────────────── */
-function NoteDetailsDrawer({ note, onClose }: { note: CreditDebitNote; onClose: () => void }) {
-  const timeline = [
-    { label: "Created",  date: note.date,           done: true,  icon: FileText   },
-    { label: "Reviewed", date: note.date,           done: note.status !== "Draft",  icon: Eye   },
-    { label: "Applied",  date: note.appliedDate,    done: note.status === "Applied", icon: CheckCircle2 },
-  ];
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
-
-      {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
-        {/* Drawer Header */}
-        <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5 shrink-0">
-          <div className="min-w-0 pr-4">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-lg font-bold text-gray-900">{note.noteNo}</h2>
-              <TypeBadge type={note.type} />
-              <StatusBadge status={note.status} />
-            </div>
-            <p className="mt-1.5 text-sm text-gray-500">{note.reason}</p>
-          </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition shrink-0">
-            <X className="h-4.5 w-4.5 h-[18px] w-[18px]" />
-          </button>
-        </div>
-
-        {/* Drawer Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          {/* Amount Highlight */}
-          <div className={`rounded-xl border p-4 ${note.type === "Credit" ? "bg-emerald-50/60 border-emerald-100" : "bg-orange-50/60 border-orange-100"}`}>
-            <p className={`text-xs font-semibold uppercase tracking-wide ${note.type === "Credit" ? "text-emerald-600" : "text-orange-600"}`}>{note.type} Amount</p>
-            <p className={`mt-1 text-3xl font-bold tracking-tight ${note.type === "Credit" ? "text-emerald-700" : "text-orange-700"}`}>{fmtCurrency(note.amount)}</p>
-          </div>
-
-          {/* Details Grid */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Note Details</h3>
-            {[
-              { icon: User,      label: "Customer",          value: note.customer    },
-              { icon: Hash,      label: "Invoice Reference", value: note.invoiceRef  },
-              { icon: Calendar,  label: "Date",              value: note.date        },
-              { icon: Building2, label: "Branch",            value: note.branch      },
-              { icon: User,      label: "Created By",        value: note.createdBy   },
-            ].map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                  <Icon className="h-3.5 w-3.5 text-gray-500" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400">{label}</p>
-                  <p className="text-sm font-medium text-gray-800 truncate">{value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Description */}
-          {note.description && (
-            <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400">Description</h3>
-              <p className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-700 leading-relaxed">{note.description}</p>
-            </div>
-          )}
-
-          {/* Timeline */}
-          <div>
-            <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Activity Timeline</h3>
-            <div className="relative ml-3.5">
-              <div className="absolute left-3.5 top-4 bottom-4 w-px bg-gray-100" />
-              <div className="space-y-5">
-                {timeline.map((step, i) => {
-                  const Icon = step.icon;
-                  const active = step.done;
-                  return (
-                    <div key={i} className="relative flex items-start gap-4 pl-7">
-                      <div className={`absolute left-0 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all ${active ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}>
-                        <Icon className={`h-3 w-3 ${active ? "text-blue-600" : "text-gray-300"}`} />
-                      </div>
-                      <div className="min-w-0 pt-0.5">
-                        <p className={`text-sm font-semibold ${active ? "text-gray-900" : "text-gray-400"}`}>{step.label}</p>
-                        {step.date ? (
-                          <p className="text-xs text-gray-400 mt-0.5">{step.date}</p>
-                        ) : (
-                          <p className="text-xs text-gray-300 mt-0.5">Awaiting</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Drawer Footer */}
-        <div className="flex items-center gap-2.5 border-t border-gray-100 px-6 py-4 shrink-0">
-          <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
-            <Download className="h-4 w-4" />
-            Download PDF
-          </button>
-          <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
-            <Pencil className="h-4 w-4" />
-            Edit
-          </button>
-          {note.status !== "Applied" && note.status !== "Cancelled" && (
-            <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm shadow-blue-900/20 transition">
-              <CheckCheck className="h-4 w-4" />
-              Apply Note
-            </button>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ─── Row actions dropdown ───────────────────────────────────────────────── */
-function RowActions({ note, onView }: { note: CreditDebitNote; onView: () => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <div className="flex items-center gap-1">
-        <button onClick={onView} className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 transition">
-          <Eye className="h-3.5 w-3.5" />
-          View
-        </button>
-        <button className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 transition">
-          <Pencil className="h-3.5 w-3.5" />
-          Edit
-        </button>
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
-      </div>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-xl border border-gray-100 bg-white shadow-xl py-1.5">
-            <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-              <Download className="h-3.5 w-3.5 text-gray-400" /> Download PDF
-            </button>
-            <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-              <Printer className="h-3.5 w-3.5 text-gray-400" /> Print Note
-            </button>
-            <div className="my-1 border-t border-gray-100" />
-            <button className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-              <XCircle className="h-3.5 w-3.5" /> Cancel Note
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }
 
 /* ─── MAIN PAGE ──────────────────────────────────────────────────────────── */
 export default function CreditDebitPage() {
-  const [notes, setNotes] = useState<CreditDebitNote[]>(MOCK_NOTES);
-  const [activeTab, setActiveTab] = useState<TabKey>("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"" | NoteType>("");
-  const [statusFilter, setStatusFilter] = useState<"" | NoteStatus>("");
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<CreditDebitNote | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [page, setPage] = useState(1);
+  const [notes, setNotes]               = useState<CreditDebitNote[]>([]);
+  const [customers, setCustomers]       = useState<CustomerOption[]>([]);
+  const [invoices, setInvoices]         = useState<InvoiceOption[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [activeTab, setActiveTab]       = useState<TabKey>("All");
+  const [searchQuery, setSearch]        = useState("");
+  const [statusFilter, setStatus]       = useState<"" | NoteStatus>("");
+  const [typeFilter, setTypeFilter]     = useState<"" | NoteType>("");
+  const [showCreate, setShowCreate]     = useState(false);
+  const [editingNote, setEditing]       = useState<CreditDebitNote | null>(null);
+  const [selectedNote, setSelected]     = useState<CreditDebitNote | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CreditDebitNote | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [page, setPage]                 = useState(1);
   const PAGE_SIZE = 10;
 
-  /* ── Filter logic ── */
-  const filtered = useMemo(() => {
-    let result = [...notes];
+  const showToast = (type: "success" | "error", msg: string) => {
+    setNotification({ type, msg });
+    setTimeout(() => setNotification(null), 4000);
+  };
 
-    // Tab filter
-    if (activeTab === "Credit Notes") result = result.filter((n) => n.type === "Credit");
-    else if (activeTab === "Debit Notes") result = result.filter((n) => n.type === "Debit");
-    else if (activeTab === "Draft") result = result.filter((n) => n.status === "Draft");
-    else if (activeTab === "Applied") result = result.filter((n) => n.status === "Applied");
-    else if (activeTab === "Cancelled") result = result.filter((n) => n.status === "Cancelled");
-
-    // Type filter
-    if (typeFilter) result = result.filter((n) => n.type === typeFilter);
-
-    // Status filter
-    if (statusFilter) result = result.filter((n) => n.status === statusFilter);
-
-    // Search
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      result = result.filter(
-        (n) =>
-          n.noteNo.toLowerCase().includes(q) ||
-          n.customer.toLowerCase().includes(q) ||
-          n.invoiceRef.toLowerCase().includes(q) ||
-          n.reason.toLowerCase().includes(q)
-      );
+  const fetchNotes = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiGet<{ success: boolean; data: CreditDebitNote[] }>("/api/credit-debit-notes?limit=200");
+      if (res.success && res.data) {
+        setNotes(res.data);
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Failed to fetch Credit/Debit notes");
+    } finally {
+      setLoading(false);
     }
-
-    return result;
-  }, [notes, activeTab, typeFilter, statusFilter, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const handleSaveNote = useCallback((note: Partial<CreditDebitNote>) => {
-    setNotes((prev) => [
-      { ...note, id: String(Date.now()) } as CreditDebitNote,
-      ...prev,
-    ]);
-    setPage(1);
   }, []);
 
-  const hasFilters = !!typeFilter || !!statusFilter || !!searchQuery;
+  const fetchLookups = useCallback(async () => {
+    try {
+      const [cRes, iRes] = await Promise.all([
+        apiGet<{ success: boolean; data: CustomerOption[] }>("/api/customers/lookup"),
+        apiGet<{ success: boolean; data: InvoiceOption[] }>("/api/invoices?limit=200"),
+      ]);
+      if (cRes.success && cRes.data) setCustomers(cRes.data);
+      if (iRes.success && iRes.data) setInvoices(iRes.data);
+    } catch (e) {
+      // fallback
+    }
+  }, []);
 
-  const resetFilters = () => {
-    setSearchQuery("");
-    setTypeFilter("");
-    setStatusFilter("");
-    setPage(1);
+  useEffect(() => {
+    fetchNotes();
+    fetchLookups();
+  }, [fetchNotes, fetchLookups]);
+
+  /* ── Filtering ── */
+  const filtered = useMemo(() => {
+    let r = [...notes];
+    if (activeTab === "Credit Notes") r = r.filter((n) => n.type === "Credit");
+    else if (activeTab === "Debit Notes")  r = r.filter((n) => n.type === "Debit");
+    else if (activeTab !== "All")         r = r.filter((n) => n.status === activeTab);
+
+    if (statusFilter) r = r.filter((n) => n.status === statusFilter);
+    if (typeFilter)   r = r.filter((n) => n.type === typeFilter);
+
+    const q = searchQuery.trim().toLowerCase();
+    if (q) r = r.filter((n) =>
+      (n.noteNo || "").toLowerCase().includes(q) ||
+      (n.customer || "").toLowerCase().includes(q) ||
+      (n.invoiceRef || "").toLowerCase().includes(q) ||
+      (n.description || "").toLowerCase().includes(q)
+    );
+    return r;
+  }, [notes, activeTab, statusFilter, typeFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  /* ── Actions ── */
+  const handleSaveNote = async (data: Partial<CreditDebitNote>, asDraft: boolean) => {
+    if (editingNote) {
+      const res = await apiPut<{ success: boolean; data: CreditDebitNote }>(`/api/credit-debit-notes/${editingNote._id}`, data);
+      if (res.success) {
+        showToast("success", `Note ${res.data.noteNo} updated`);
+        fetchNotes();
+      }
+    } else {
+      const res = await apiPost<{ success: boolean; data: CreditDebitNote }>("/api/credit-debit-notes", data);
+      if (res.success) {
+        showToast("success", `${res.data.type} Note ${res.data.noteNo} generated`);
+        fetchNotes();
+      }
+    }
+  };
+
+  const handleStatusChange = async (note: CreditDebitNote, newStatus: NoteStatus) => {
+    const updatePayload: Partial<CreditDebitNote> = { status: newStatus };
+    if (newStatus === "Applied") {
+      updatePayload.appliedDate = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+    }
+    const res = await apiPut<{ success: boolean; data: CreditDebitNote }>(`/api/credit-debit-notes/${note._id}`, updatePayload);
+    if (res.success) {
+      showToast("success", `Note ${note.noteNo} marked as ${newStatus}`);
+      fetchNotes();
+      if (selectedNote && selectedNote._id === note._id) setSelected(res.data);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await apiDelete<{ success: boolean }>(`/api/credit-debit-notes/${deleteTarget._id}`);
+      if (res.success) {
+        showToast("success", `Note ${deleteTarget.noteNo} deleted`);
+        fetchNotes();
+        setDeleteTarget(null);
+        if (selectedNote && selectedNote._id === deleteTarget._id) setSelected(null);
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Failed to delete note");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FC]">
-      {/* ── Page Header ── */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          {/* Breadcrumb */}
-          <nav className="mb-2 flex items-center gap-1.5 text-xs text-gray-400">
-            <span>Finance</span>
-            <ChevronRight className="h-3 w-3" />
-            <span className="font-medium text-gray-600">Credit &amp; Debit Notes</span>
-          </nav>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Credit &amp; Debit Notes</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage customer credits, debits and financial adjustments</p>
+    <div className="min-h-screen bg-gray-50/60 p-6 font-sans">
+      {/* Toast Notification */}
+      {notification && (
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold text-white shadow-xl ${
+          notification.type === "success" ? "bg-emerald-600" : "bg-red-600"
+        }`}>
+          {notification.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {notification.msg}
         </div>
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition">
-            <Download className="h-4 w-4 text-gray-500" />
-            Export
+      )}
+
+      {/* Header */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Credit / Debit Notes</h1>
+          <p className="mt-1 text-sm text-gray-500">Manage billing adjustments, freight credits, and debit adjustments</p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button onClick={fetchNotes} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
           <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 rounded-lg border px-3.5 py-2.5 text-sm font-medium shadow-sm transition ${showFilters ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
-          >
-            <Filter className="h-4 w-4" />
-            Filter
-            {hasFilters && <span className="flex h-2 w-2 rounded-full bg-blue-500" />}
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => { setEditing(null); setShowCreate(true); }}
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm shadow-blue-900/20 transition"
           >
-            <Plus className="h-4 w-4" />
-            Create Note
+            <Plus className="h-4 w-4" /> Generate Note
           </button>
         </div>
       </div>
 
-      {/* ── Summary Cards ── */}
-      <SummaryCards notes={notes} />
-
-      {/* ── Tabs ── */}
-      <div className="mt-6 flex items-center gap-1 overflow-x-auto pb-0 border-b border-gray-200">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab;
-          const count =
-            tab === "All" ? notes.length
-            : tab === "Credit Notes" ? notes.filter((n) => n.type === "Credit").length
-            : tab === "Debit Notes"  ? notes.filter((n) => n.type === "Debit").length
-            : notes.filter((n) => n.status === (tab as NoteStatus)).length;
-          return (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(tab); setPage(1); }}
-              className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-all ${
-                isActive
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              {tab}
-              <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums ${isActive ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500"}`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+      {/* Summary Cards */}
+      <div className="mb-6">
+        <SummaryCards notes={notes} />
       </div>
 
-      {/* ── Toolbar (search + filters) ── */}
-      <div className="mt-4 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 max-w-md">
+      {/* Main Table Container */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 px-5 overflow-x-auto">
+          {TABS.map((tab) => {
+            let count = notes.length;
+            if (tab === "Credit Notes") count = notes.filter((n) => n.type === "Credit").length;
+            else if (tab === "Debit Notes") count = notes.filter((n) => n.type === "Debit").length;
+            else if (tab !== "All") count = notes.filter((n) => n.status === tab).length;
+
+            return (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); setPage(1); }}
+                className={`flex items-center gap-2 py-3.5 px-4 text-xs font-semibold border-b-2 whitespace-nowrap transition-all ${
+                  activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab}
+                <span className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeTab === tab ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Controls */}
+        <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="relative flex-1 w-full sm:w-auto min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
-              type="text"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-              placeholder="Search note number, customer, invoice..."
-              className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-8 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search note number, customer, invoice ref, description..."
+              className="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-2 text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-blue-500"
             />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4" />
-              </button>
-            )}
           </div>
 
-          {/* Desktop filter row */}
-          {showFilters && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative">
-                <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value as "" | NoteType); setPage(1); }} className="appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-3 pr-7 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 transition">
-                  <option value="">Note Type</option>
-                  <option value="Credit">Credit</option>
-                  <option value="Debit">Debit</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              </div>
-              <div className="relative">
-                <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "" | NoteStatus); setPage(1); }} className="appearance-none rounded-lg border border-gray-200 bg-white py-2.5 pl-3 pr-7 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 transition">
-                  <option value="">All Statuses</option>
-                  <option value="Applied">Applied</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              </div>
-              {hasFilters && (
-                <button onClick={resetFilters} className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-100 transition">
-                  <RefreshCw className="h-3.5 w-3.5" /> Reset
-                </button>
-              )}
-            </div>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as any)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 bg-white focus:outline-none"
+            >
+              <option value="">All Types</option>
+              <option value="Credit">Credit Notes</option>
+              <option value="Debit">Debit Notes</option>
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatus(e.target.value as any)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 bg-white focus:outline-none"
+            >
+              <option value="">All Statuses</option>
+              {["Draft", "Pending", "Applied", "Cancelled"].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="p-12 text-center text-gray-400 text-xs">Loading note records...</div>
+          ) : paginated.length === 0 ? (
+            <div className="p-12 text-center text-gray-400 text-xs">No Credit/Debit notes found matching criteria.</div>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold text-[11px]">
+                <tr>
+                  <th className="py-3 px-4">Note No</th>
+                  <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Customer</th>
+                  <th className="py-3 px-4">Invoice Ref</th>
+                  <th className="py-3 px-4">Reason</th>
+                  <th className="py-3 px-4 text-right">Amount</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginated.map((note) => (
+                  <tr key={note._id} className="hover:bg-blue-50/20 transition-colors">
+                    <td className="py-3.5 px-4 font-bold font-mono text-blue-600">{note.noteNo}</td>
+                    <td className="py-3.5 px-4">
+                      <TypeBadge type={note.type} />
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-900">{note.customer}</td>
+                    <td className="py-3.5 px-4 text-gray-600 font-mono">{note.invoiceRef || "—"}</td>
+                    <td className="py-3.5 px-4 text-gray-600">{note.reason}</td>
+                    <td className={`py-3.5 px-4 text-right font-bold ${note.type === "Credit" ? "text-emerald-600" : "text-orange-600"}`}>
+                      {fmtCurrency(note.amount)}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <StatusBadge status={note.status} />
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setSelected(note)}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> View
+                        </button>
+                        <button
+                          onClick={() => { setEditing(note); setShowCreate(true); }}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        {note.status !== "Applied" && (
+                          <button
+                            onClick={() => handleStatusChange(note, "Applied")}
+                            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            <CheckCheck className="h-3.5 w-3.5" /> Apply
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeleteTarget(note)}
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
-        {hasFilters && (
-          <p className="text-xs font-medium text-blue-600">
-            {filtered.length} of {notes.length} records match current filters
-          </p>
-        )}
-      </div>
-
-      {/* ── Main Table (desktop) ── */}
-      <div className="mt-4 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm md:block">
-        <table className="w-full min-w-[900px] text-left">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/70">
-              {["Note No.", "Type", "Customer", "Invoice Ref.", "Date", "Amount", "Status", "Actions"].map((col) => (
-                <th key={col} className="whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {paginated.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-6 py-14 text-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                      <Search className="h-6 w-6 text-gray-300" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-500">No notes match your filters</p>
-                    <button onClick={resetFilters} className="text-xs text-blue-600 hover:underline">Clear filters</button>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              paginated.map((note) => (
-                <tr
-                  key={note.id}
-                  className="group text-sm text-gray-700 transition-colors hover:bg-blue-50/30 cursor-pointer"
-                  onClick={() => setSelectedNote(note)}
-                >
-                  <td className="px-5 py-3.5">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setSelectedNote(note); }}
-                      className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      {note.noteNo}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <TypeBadge type={note.type} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="font-medium text-gray-800">{note.customer}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="font-mono text-xs text-gray-500">{note.invoiceRef}</span>
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-500 text-xs">{note.date}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`font-semibold ${note.type === "Credit" ? "text-emerald-700" : "text-orange-700"}`}>
-                      {fmtCurrency(note.amount)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <StatusBadge status={note.status} />
-                  </td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <RowActions note={note} onView={() => setSelectedNote(note)} />
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── Mobile cards ── */}
-      <div className="mt-4 space-y-3 md:hidden">
-        {paginated.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-              <Search className="h-6 w-6 text-gray-300" />
-            </div>
-            <p className="text-sm text-gray-500">No notes match your filters</p>
-          </div>
-        ) : (
-          paginated.map((note) => (
-            <div
-              key={note.id}
-              onClick={() => setSelectedNote(note)}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+        {/* Pagination */}
+        <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+          <span>Showing {paginated.length} of {filtered.length} entries</span>
+          <div className="flex gap-1">
+            <button
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="rounded border border-gray-200 px-3 py-1 text-xs font-medium disabled:opacity-40"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-mono font-semibold text-blue-600">{note.noteNo}</p>
-                  <p className="mt-0.5 text-sm font-medium text-gray-800 truncate">{note.customer}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{note.invoiceRef} · {note.date}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <TypeBadge type={note.type} />
-                  <StatusBadge status={note.status} />
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3">
-                <span className={`text-base font-bold ${note.type === "Credit" ? "text-emerald-700" : "text-orange-700"}`}>
-                  {fmtCurrency(note.amount)}
-                </span>
-                <span className="text-xs text-gray-400">{note.reason}</span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* ── Pagination ── */}
-      {filtered.length > PAGE_SIZE && (
-        <div className="mt-5 flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-sm text-gray-500">
-            Showing <span className="font-semibold text-gray-700">{(safePage - 1) * PAGE_SIZE + 1}</span>–<span className="font-semibold text-gray-700">{Math.min(safePage * PAGE_SIZE, filtered.length)}</span> of <span className="font-semibold text-gray-700">{filtered.length}</span>
-          </p>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setPage(safePage - 1)} disabled={safePage === 1} className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const p = safePage <= 3 ? i + 1 : safePage + i - 2;
-              if (p > totalPages) return null;
-              return (
-                <button key={p} onClick={() => setPage(p)} className={`flex h-8 w-8 items-center justify-center rounded-md border text-sm font-medium transition ${safePage === p ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{p}</button>
-              );
-            })}
-            <button onClick={() => setPage(safePage + 1)} disabled={safePage === totalPages} className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+              Previous
+            </button>
+            <span className="px-2 py-1 font-semibold text-gray-700">
+              Page {safePage} of {totalPages}
+            </span>
+            <button
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded border border-gray-200 px-3 py-1 text-xs font-medium disabled:opacity-40"
+            >
+              Next
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* Create / Edit Modal */}
+      {showCreate && (
+        <NoteFormModal
+          initialData={editingNote}
+          customers={customers}
+          invoices={invoices}
+          onClose={() => { setShowCreate(false); setEditing(null); }}
+          onSave={handleSaveNote}
+        />
       )}
 
-      {/* ── Create Note Modal ── */}
-      {showCreateModal && (
-        <CreateNoteModal onClose={() => setShowCreateModal(false)} onSave={handleSaveNote} />
-      )}
-
-      {/* ── Note Details Drawer ── */}
+      {/* View Drawer */}
       {selectedNote && (
-        <NoteDetailsDrawer note={selectedNote} onClose={() => setSelectedNote(null)} />
+        <>
+          <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setSelected(null)} />
+          <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-mono text-base font-bold text-gray-900">{selectedNote.noteNo}</h2>
+                  <TypeBadge type={selectedNote.type} />
+                  <StatusBadge status={selectedNote.status} />
+                </div>
+                <p className="mt-1 text-sm font-semibold text-gray-800">{selectedNote.customer}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Date: {selectedNote.date}</p>
+              </div>
+              <button onClick={() => setSelected(null)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Invoice Ref:</span>
+                  <span className="font-mono font-bold text-blue-600">{selectedNote.invoiceRef || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Reason:</span>
+                  <span className="font-semibold text-gray-800">{selectedNote.reason}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 pt-2 text-sm">
+                  <span className="font-bold text-gray-900">Total Amount:</span>
+                  <span className={`font-bold ${selectedNote.type === "Credit" ? "text-emerald-600" : "text-orange-600"}`}>
+                    {fmtCurrency(selectedNote.amount)}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-gray-900 mb-1">Description / Notes</h4>
+                <p className="text-gray-600 bg-gray-50 border border-gray-100 rounded-lg p-3 leading-relaxed">
+                  {selectedNote.description || "No description provided."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-gray-500 border-t border-gray-100 pt-3">
+                <div><span>Branch:</span> <p className="font-semibold text-gray-800">{selectedNote.branch}</p></div>
+                <div><span>Created By:</span> <p className="font-semibold text-gray-800">{selectedNote.createdBy}</p></div>
+                {selectedNote.appliedDate && (
+                  <div className="col-span-2"><span>Applied Date:</span> <p className="font-semibold text-emerald-700">{selectedNote.appliedDate}</p></div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4 bg-gray-50/50">
+              {selectedNote.status !== "Applied" && (
+                <button
+                  onClick={() => handleStatusChange(selectedNote, "Applied")}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                >
+                  Apply Note
+                </button>
+              )}
+              <button
+                onClick={() => { setEditing(selectedNote); setSelected(null); setShowCreate(true); }}
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Edit Note
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Delete Note</h3>
+                <p className="text-xs text-gray-500">{deleteTarget.noteNo}</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600">Are you sure you want to delete this Credit/Debit note? This action cannot be undone.</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteNote}
+                className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 shadow-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

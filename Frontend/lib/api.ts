@@ -4,8 +4,17 @@
  * and Authorization header are set in exactly one place.
  */
 
-const rawApiBase = process.env.NEXT_PUBLIC_API_URL || "https://obedf-1.onrender.com";
-export const API_BASE = rawApiBase.replace(/\/+$/, "");
+export function getApiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return "http://localhost:5000";
+  }
+  return "https://obedf-1.onrender.com";
+}
+
+export const API_BASE = getApiBase();
 
 /** Returns the JWT bearer header if a token is stored, otherwise {}. */
 export function authHeader(): Record<string, string> {
@@ -33,7 +42,7 @@ export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const url = path.startsWith("http") ? path : `${getApiBase()}${path}`;
 
   const res = await fetch(url, {
     ...options,

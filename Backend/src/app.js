@@ -32,6 +32,9 @@ import supplierRoutes       from './routes/supplierRoutes.js';
 import trailerRoutes        from './routes/trailerRoutes.js';
 import exchangeRateRoutes   from './routes/exchangeRateRoutes.js';
 import ratingRoutes         from './routes/ratingRoutes.js';
+import invoiceRoutes        from './routes/invoiceRoutes.js';
+import creditDebitRoutes    from './routes/creditDebitRoutes.js';
+import quotationRoutes      from './routes/quotationRoutes.js';
 
 const app = express();
 
@@ -126,6 +129,9 @@ app.use('/api/suppliers',       supplierRoutes);
 app.use('/api/trailers',        trailerRoutes);
 app.use('/api/exchange-rates',  exchangeRateRoutes);
 app.use('/api/ratings',         ratingRoutes);
+app.use('/api/invoices',        invoiceRoutes);
+app.use('/api/credit-debit-notes', creditDebitRoutes);
+app.use('/api/quotations',      quotationRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, _, next) => {

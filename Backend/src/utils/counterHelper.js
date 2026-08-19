@@ -35,3 +35,39 @@ export const getNextManifestNumber = async () => {
   const seq = await getNextSequenceValue('manifest');
   return `MF${String(seq).padStart(6, '0')}`;
 };
+
+/**
+ * Returns formatted sequential Invoice Number: INV-2026-00891...
+ */
+export const getNextInvoiceNumber = async () => {
+  const seq = await getNextSequenceValue('invoice');
+  const year = new Date().getFullYear();
+  return `INV-${year}-${String(seq).padStart(5, '0')}`;
+};
+
+/**
+ * Returns formatted sequential Credit Note Number: CN-2026-00124...
+ */
+export const getNextCreditNoteNumber = async () => {
+  const seq = await getNextSequenceValue('credit_note');
+  const year = new Date().getFullYear();
+  return `CN-${year}-${String(seq).padStart(5, '0')}`;
+};
+
+/**
+ * Returns formatted sequential Debit Note Number: DN-2026-00087...
+ */
+export const getNextDebitNoteNumber = async () => {
+  const seq = await getNextSequenceValue('debit_note');
+  const year = new Date().getFullYear();
+  return `DN-${year}-${String(seq).padStart(5, '0')}`;
+};
+
+/**
+ * Returns formatted sequential Quotation Number: QT-8801...
+ */
+export const getNextQuotationNumber = async () => {
+  const seq = await getNextSequenceValue('quotation');
+  return `QT-${String(8800 + seq)}`;
+};
+

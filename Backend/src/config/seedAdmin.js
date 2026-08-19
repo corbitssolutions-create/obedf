@@ -10,6 +10,9 @@ import Branch     from '../models/Branch.js';
 import Route      from '../models/Route.js';
 import Counter    from '../models/Counter.js';
 import Contractor from '../models/Contractor.js';
+import Invoice    from '../models/Invoice.js';
+import CreditDebitNote from '../models/CreditDebitNote.js';
+import Quotation  from '../models/Quotation.js';
 
 /** volumetric weight: L × W × H ÷ 5000 */
 const volWeight = (l = 0, w = 0, h = 0) => (l * w * h) / 5000;
@@ -403,6 +406,146 @@ const seedAdmin = async () => {
       await Counter.updateOne({ id: 'manifest' }, { seq: 3 }, { upsert: true });
 
       console.log('[SEED] Waybills and manifests seeded successfully.');
+    }
+
+    // ── Seed Invoices ─────────────────────────────────────────────────────────
+    const invoiceCount = await Invoice.countDocuments({});
+    if (invoiceCount === 0) {
+      console.log('[SEED] Seeding default invoices...');
+      const sampleInvoices = [
+        {
+          invoiceNo: "INV-2026-00891", customer: "Build It Centurion",
+          customerAddress: "123 Centurion Drive, Centurion, 0157", customerContact: "+27 12 643 2100",
+          customerEmail: "accounts@buildit-centurion.co.za", issueDate: "29 Jul 2026", dueDate: "12 Aug 2026",
+          amount: 42500, subtotal: 36956.52, taxTotal: 5543.48, balance: 42500, status: "Sent", branch: "Pretoria DC",
+          createdBy: "Admin User", paymentTerms: "Net 14 Days",
+          lineItems: [
+            { description: "Delivery Service — JHB to Centurion", qty: 5, rate: 2500, taxPct: 15, amount: 14375 },
+            { description: "Freight Charges — Bulk Pallet Load", qty: 1, rate: 8500, taxPct: 15, amount: 9775 },
+            { description: "Handling & Packaging", qty: 3, rate: 1200, taxPct: 15, amount: 4140 },
+          ],
+          notes: "Please quote invoice number on all EFT payments.",
+        },
+        {
+          invoiceNo: "INV-2026-00890", customer: "Takealot Midrand",
+          customerAddress: "45 Allandale Road, Midrand, 1685", customerContact: "+27 10 249 5000",
+          customerEmail: "finance@takealot.com", issueDate: "28 Jul 2026", dueDate: "11 Aug 2026",
+          amount: 28400, subtotal: 24695.65, taxTotal: 3704.35, balance: 0, status: "Paid", branch: "Johannesburg DC",
+          createdBy: "Finance User", paymentTerms: "Net 14 Days",
+          lineItems: [
+            { description: "Delivery Service — JHB Distribution Run", qty: 8, rate: 1800, taxPct: 15, amount: 16560 },
+            { description: "Fuel Surcharge", qty: 1, rate: 3500, taxPct: 15, amount: 4025 },
+            { description: "After-Hours Delivery Premium", qty: 2, rate: 1850, taxPct: 15, amount: 4255 },
+          ],
+        },
+        {
+          invoiceNo: "INV-2026-00889", customer: "Pretoria CBD Store",
+          customerAddress: "78 Church Street, Pretoria CBD, 0002", customerContact: "+27 12 323 4567",
+          customerEmail: "admin@pretoriacbd.co.za", issueDate: "27 Jul 2026", dueDate: "10 Aug 2026",
+          amount: 18750, subtotal: 16304.35, taxTotal: 2445.65, balance: 6250, status: "Partially Paid", branch: "Pretoria DC",
+          createdBy: "Admin User", paymentTerms: "Net 14 Days",
+          lineItems: [
+            { description: "Delivery Service — CBD Express", qty: 3, rate: 2200, taxPct: 15, amount: 7590 },
+            { description: "Overnight Storage Fee", qty: 5, rate: 850, taxPct: 15, amount: 4887.5 },
+            { description: "Same-Day Delivery Surcharge", qty: 2, rate: 1400, taxPct: 15, amount: 3220 },
+          ],
+          notes: "Partial payment of R12,500.00 received on 05 Aug 2026.",
+        },
+        {
+          invoiceNo: "INV-2026-00888", customer: "Westgate Mall",
+          customerAddress: "Hendrik Potgieter Street, Roodepoort, 1724", customerContact: "+27 11 475 3200",
+          customerEmail: "finance@westgatemall.co.za", issueDate: "25 Jul 2026", dueDate: "08 Aug 2026",
+          amount: 31200, subtotal: 27130.43, taxTotal: 4069.57, balance: 31200, status: "Overdue", branch: "Johannesburg DC",
+          createdBy: "Finance User", paymentTerms: "Net 14 Days",
+          lineItems: [
+            { description: "Delivery Service — West Rand Route", qty: 6, rate: 2800, taxPct: 15, amount: 19320 },
+            { description: "Tail-Lift Vehicle Surcharge", qty: 1, rate: 4200, taxPct: 15, amount: 4830 },
+            { description: "Re-Delivery Fee", qty: 1, rate: 600, taxPct: 15, amount: 690 },
+          ],
+          notes: "Payment overdue. Third payment reminder sent on 10 Aug 2026.",
+        },
+        {
+          invoiceNo: "INV-2026-00887", customer: "Makro Silverton",
+          customerAddress: "45 Silverton Road, Pretoria East, 0184", customerContact: "+27 12 804 5000",
+          customerEmail: "accounts@makro.co.za", issueDate: "24 Jul 2026", dueDate: "07 Aug 2026",
+          amount: 55800, subtotal: 48521.74, taxTotal: 7278.26, balance: 0, status: "Paid", branch: "Pretoria DC",
+          createdBy: "Admin User", paymentTerms: "Net 14 Days",
+          lineItems: [
+            { description: "Bulk Freight — Full Truck Load", qty: 1, rate: 32000, taxPct: 15, amount: 36800 },
+            { description: "Offloading Labour", qty: 4, rate: 1200, taxPct: 15, amount: 5520 },
+            { description: "Waiting Time (per hour)", qty: 3, rate: 850, taxPct: 15, amount: 2932.5 },
+            { description: "Fuel Surcharge — Long Haul", qty: 1, rate: 4750, taxPct: 15, amount: 5462.5 },
+          ],
+        },
+        {
+          invoiceNo: "INV-2026-00886", customer: "Clicks Hatfield",
+          customerAddress: "Burnett Street, Hatfield, Pretoria, 0083", customerContact: "+27 12 362 8800",
+          customerEmail: "logistics@clicks.co.za", issueDate: "22 Jul 2026", dueDate: "05 Aug 2026",
+          amount: 9600, subtotal: 8347.83, taxTotal: 1252.17, balance: 9600, status: "Draft", branch: "Pretoria DC",
+          createdBy: "Finance User", paymentTerms: "Net 14 Days",
+          lineItems: [
+            { description: "Delivery Service — Hatfield Area", qty: 4, rate: 1400, taxPct: 15, amount: 6440 },
+            { description: "Cold-Chain Surcharge", qty: 1, rate: 4000, taxPct: 15, amount: 4600 },
+          ],
+          notes: "Draft — awaiting approval before sending.",
+        },
+      ];
+      await Invoice.insertMany(sampleInvoices);
+      await Counter.updateOne({ id: 'invoice' }, { seq: 891 }, { upsert: true });
+      console.log('[SEED] Invoices seeded successfully.');
+    }
+
+    // ── Seed Credit/Debit Notes ───────────────────────────────────────────────
+    const noteCount = await CreditDebitNote.countDocuments({});
+    if (noteCount === 0) {
+      console.log('[SEED] Seeding default Credit/Debit Notes...');
+      const sampleNotes = [
+        { noteNo: "CN-2026-00124", type: "Credit", customer: "Build It Centurion",     invoiceRef: "INV-2026-00891", date: "29 Jul 2026", amount: 4250,  status: "Applied",   reason: "Pricing Adjustment",  description: "Rate correction for overcharged freight services on July delivery run.", branch: "Johannesburg DC", createdBy: "Admin User", appliedDate: "30 Jul 2026" },
+        { noteNo: "DN-2026-00087", type: "Debit",  customer: "Takealot Midrand",        invoiceRef: "INV-2026-00782", date: "28 Jul 2026", amount: 2850,  status: "Pending",   reason: "Freight Adjustment",  description: "Additional handling charges for oversized cargo on manifest DM-00451.", branch: "Pretoria DC",    createdBy: "Finance User", appliedDate: "" },
+        { noteNo: "CN-2026-00123", type: "Credit", customer: "Westgate Mall",           invoiceRef: "INV-2026-00765", date: "27 Jul 2026", amount: 1850,  status: "Applied",   reason: "Damaged Goods",      description: "Credit issued for 3 parcels damaged in transit, as per POD-00221.", branch: "Cape Town DC",   createdBy: "Admin User", appliedDate: "28 Jul 2026" },
+        { noteNo: "DN-2026-00086", type: "Debit",  customer: "Soshanguve Retail",       invoiceRef: "INV-2026-00741", date: "26 Jul 2026", amount: 3200,  status: "Draft",     reason: "Quantity Adjustment", description: "Additional parcels delivered outside original waybill scope.", branch: "Johannesburg DC", createdBy: "Finance User", appliedDate: "" },
+        { noteNo: "CN-2026-00122", type: "Credit", customer: "Pretoria CBD Store",      invoiceRef: "INV-2026-00730", date: "25 Jul 2026", amount: 950,   status: "Applied",   reason: "Returned Goods",     description: "5 units returned to sender, full freight credit applied.", branch: "Pretoria DC",    createdBy: "Admin User", appliedDate: "26 Jul 2026" },
+        { noteNo: "CN-2026-00121", type: "Credit", customer: "Makro Silverton",         invoiceRef: "INV-2026-00715", date: "24 Jul 2026", amount: 6700,  status: "Applied",   reason: "Pricing Adjustment",  description: "Contract rate applied retrospectively for bulk delivery agreement.", branch: "Johannesburg DC", createdBy: "Admin User", appliedDate: "25 Jul 2026" },
+      ];
+      await CreditDebitNote.insertMany(sampleNotes);
+      await Counter.updateOne({ id: 'credit_note' }, { seq: 124 }, { upsert: true });
+      await Counter.updateOne({ id: 'debit_note'  }, { seq: 87  }, { upsert: true });
+      console.log('[SEED] Credit/Debit Notes seeded successfully.');
+    }
+
+    // ── Seed Quotations ───────────────────────────────────────────────────────
+    const quoteCount = await Quotation.countDocuments({});
+    if (quoteCount === 0) {
+      console.log('[SEED] Seeding default quotations...');
+      const sampleQuotations = [
+        {
+          quoteNo: "QT-8801", customer: "Makro Logistics",
+          customerAddress: "Woodmead Commercial Park, Sandton, 2191", customerContact: "+27 11 797 0000", customerEmail: "logistics@makro.co.za",
+          route: "JHB - CPT", rate: 24500, subtotal: 21304.35, taxTotal: 3195.65, discount: 0, validUntil: "30/07/2026", issueDate: "15/07/2026",
+          status: "Approved", branch: "Johannesburg DC", createdBy: "Admin User",
+          lineItems: [{ description: "Full Truckload JHB to CPT Freight", qty: 1, rate: 21304.35, taxPct: 15, discount: 0, amount: 21304.35 }],
+          notes: "Rate valid for 30 days. Includes loading & transit insurance.",
+        },
+        {
+          quoteNo: "QT-8802", customer: "Pick n Pay Central",
+          customerAddress: "1 Pick n Pay Office Park, Bedfordview, 2008", customerContact: "+27 11 456 5000", customerEmail: "freight@pnp.co.za",
+          route: "JHB - DBN", rate: 18200, subtotal: 15826.09, taxTotal: 2373.91, discount: 0, validUntil: "25/07/2026", issueDate: "10/07/2026",
+          status: "Draft", branch: "Johannesburg DC", createdBy: "Finance User",
+          lineItems: [{ description: "Scheduled Pallet Distribution (6 Pallets)", qty: 6, rate: 2637.68, taxPct: 15, discount: 0, amount: 15826.09 }],
+          notes: "Awaiting client confirmation on pickup schedules.",
+        },
+        {
+          quoteNo: "QT-8803", customer: "Builders Warehouse Pretoria",
+          customerAddress: "Zwartkop, Centurion, 0157", customerContact: "+27 12 663 1200", customerEmail: "orders@builders.co.za",
+          route: "PTA - DBN", rate: 32000, subtotal: 27826.09, taxTotal: 4173.91, discount: 1000, validUntil: "15/08/2026", issueDate: "01/08/2026",
+          status: "Pending", branch: "Pretoria DC", createdBy: "Admin User",
+          lineItems: [{ description: "Heavy Duty Cargo Express Delivery", qty: 2, rate: 13913.04, taxPct: 15, discount: 500, amount: 27826.09 }],
+          notes: "Special contract discount applied.",
+        },
+      ];
+      await Quotation.insertMany(sampleQuotations);
+      await Counter.updateOne({ id: 'quotation' }, { seq: 3 }, { upsert: true });
+      console.log('[SEED] Quotations seeded successfully.');
     }
 
     console.log('[SEED] Database seed complete.');

@@ -6,6 +6,7 @@ export default function CollectionManifestPage() {
   return (
     <CreateManifestPage
       onBack={() => {}}
+      onSubmit={() => {}}
       waybillPool={[
         { id: "WB00012345", receiver: "Jet Park DC", parcels: 25, weight: 50.4, sender: "Makro (Pty) Ltd" },
         { id: "WB00012346", receiver: "Cape Town DC", parcels: 18, weight: 25.2, sender: "Builders Warehouse" },
