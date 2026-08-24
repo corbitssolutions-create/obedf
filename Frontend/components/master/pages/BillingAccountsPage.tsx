@@ -661,12 +661,12 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
                               onChange={e => setExtraCharges(p => p.map((c, i) => i === idx ? { ...c, amount: parseFloat(e.target.value) || 0 } : c))}
                               placeholder="0.00" className={inputClass} />
                           </td>
-                          {/* <td className="px-4 py-2">
+                          <td className="px-4 py-2">
                             <Select
                               value={charge.status}
                               onChange={v => setExtraCharges(p => p.map((c, i) => i === idx ? { ...c, status: v as "Active" | "Inactive" } : c))}
                               placeholder="Status" options={["Active", "Inactive"]} />
-                          </td> */}
+                          </td>
                           <td className="px-4 py-2 text-right">
                             <button type="button"
                               onClick={() => setExtraCharges(p => p.filter((_, i) => i !== idx))}
