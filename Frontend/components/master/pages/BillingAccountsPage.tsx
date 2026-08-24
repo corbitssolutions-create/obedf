@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
 import { useTableFilters } from "../../hooks/useTableFilters";
@@ -65,6 +65,11 @@ export default function BillingAccountsPage() {
   const [isAddOpen,  setAddOpen]    = useState(false);
   const [editTarget, setEditTarget] = useState<BillingAccount | null>(null);
 
+  // NEW: status filter handled locally, decoupled from useTableFilters,
+  // because that hook compares filters.<key> against row.<key> — and our
+  // rows use "accountStatus", not "status", so it could never match.
+  const [statusFilter, setStatusFilter] = useState("");
+
   const fetchAccounts = useCallback(async () => {
     setLoading(true); setError("");
     try {
@@ -86,16 +91,29 @@ export default function BillingAccountsPage() {
     } catch (e: any) { alert(e.message ?? "Delete failed"); }
   };
 
+  // NEW: apply the status filter against the real field name (accountStatus)
+  // BEFORE handing data to useTableFilters, so search/sort/pagination all
+  // operate on the already status-narrowed set.
+  const statusFilteredAccounts = useMemo(
+    () => statusFilter ? accounts.filter(a => a.accountStatus === statusFilter) : accounts,
+    [accounts, statusFilter]
+  );
+
   const {
     paginated, filtered, total, rawSearch, handleSearch,
     filters, handleFilter, sort, handleSort,
     page, setPage, pageSize, handlePageSize, totalPages,
     resetFilters, hasActiveFilters,
   } = useTableFilters<BillingAccount>({
-    data: accounts,
+    data: statusFilteredAccounts,
     searchFields: ["billingAccountCode", "billingAccountName", "contactPerson", "email"],
     pageSize: 10,
   });
+
+  const handleResetAll = () => {
+    resetFilters();
+    setStatusFilter("");
+  };
 
   if (loading) return (
     <div className="flex min-h-[300px] items-center justify-center">
@@ -124,12 +142,9 @@ export default function BillingAccountsPage() {
         <div className="w-full sm:max-w-xs">
           <SearchBar value={rawSearch} onChange={handleSearch} placeholder="Search code, name, contact…" />
         </div>
-        {/* FIX: FilterSelect + handleFilter now read/write "status" — the key
-            useTableFilters actually maintains and filters on — instead of the
-            unused "accountStatus" key that was never checked by the hook. */}
-        <FilterSelect value={filters.status as string} onChange={v => handleFilter("status", v)}
+        <FilterSelect value={statusFilter} onChange={setStatusFilter}
           options={STATUS_OPTS} placeholder="All Statuses" />
-        <ResetButton onClick={resetFilters} active={hasActiveFilters} />
+        <ResetButton onClick={handleResetAll} active={hasActiveFilters || !!statusFilter} />
       </div>
 
       {/* Desktop table */}
