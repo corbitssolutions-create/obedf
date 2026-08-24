@@ -1,0 +1,10 @@
+# railpack.toml
+[build]
+language = "node"
+
+[build.node]
+version = "18"
+
+[build.commands]
+build = "npm run build"
+start = "npm start"
