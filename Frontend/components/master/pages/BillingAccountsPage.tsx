@@ -65,9 +65,6 @@ export default function BillingAccountsPage() {
   const [isAddOpen,  setAddOpen]    = useState(false);
   const [editTarget, setEditTarget] = useState<BillingAccount | null>(null);
 
-  // NEW: status filter handled locally, decoupled from useTableFilters,
-  // because that hook compares filters.<key> against row.<key> — and our
-  // rows use "accountStatus", not "status", so it could never match.
   const [statusFilter, setStatusFilter] = useState("");
 
   const fetchAccounts = useCallback(async () => {
@@ -76,7 +73,12 @@ export default function BillingAccountsPage() {
       const res = await apiGet<{ success: boolean; data: BillingAccount[] }>(
         "/api/billing-accounts?limit=500&sort=billingAccountName:asc"
       );
-      setAccounts(res.data ?? []);
+      // Map "To Deliver" to "Active" when fetching data
+      const mappedData = (res.data ?? []).map(account => ({
+        ...account,
+        accountStatus: account.accountStatus === "To Deliver" ? "Active" : account.accountStatus
+      }));
+      setAccounts(mappedData);
     } catch (e: any) { setError(e.message ?? "Failed to load billing accounts"); }
     finally { setLoading(false); }
   }, []);
@@ -91,9 +93,6 @@ export default function BillingAccountsPage() {
     } catch (e: any) { alert(e.message ?? "Delete failed"); }
   };
 
-  // NEW: apply the status filter against the real field name (accountStatus)
-  // BEFORE handing data to useTableFilters, so search/sort/pagination all
-  // operate on the already status-narrowed set.
   const statusFilteredAccounts = useMemo(
     () => statusFilter ? accounts.filter(a => a.accountStatus === statusFilter) : accounts,
     [accounts, statusFilter]
@@ -342,11 +341,14 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
 
   useEffect(() => {
     const a = account as any;
+    // Map "To Deliver" to "Active" when editing
+    const mappedStatus = a?.accountStatus === "To Deliver" ? "Active" : (a?.accountStatus ?? "Active");
+    
     setCode(a?.billingAccountCode ?? "");
     setName(a?.billingAccountName ?? "");
     setCustomerId(typeof a?.customer === "object" ? a?.customer?._id ?? "" : "");
     setBranchId(  typeof a?.branch   === "object" ? a?.branch?._id   ?? "" : a?.branch ?? "");
-    setStatus(a?.accountStatus ?? "Active");
+    setStatus(mappedStatus);
     setBillingCycle(a?.billingCycle ?? "Monthly");
     setInvoiceFreq( a?.invoiceFrequency ?? "Monthly");
     setInvoiceDel(  a?.invoiceDeliveryMethod ?? "Email");
