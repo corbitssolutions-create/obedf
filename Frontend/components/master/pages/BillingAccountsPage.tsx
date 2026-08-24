@@ -72,11 +72,6 @@ export default function BillingAccountsPage() {
         "/api/billing-accounts?limit=500&sort=billingAccountName:asc"
       );
       setAccounts(res.data ?? []);
-      // DEBUG: confirm what statuses actually come back from the API
-      console.log(
-        "[DEBUG] fetched accounts - statuses:",
-        (res.data ?? []).map(a => ({ code: a.billingAccountCode, status: JSON.stringify(a.accountStatus) }))
-      );
     } catch (e: any) { setError(e.message ?? "Failed to load billing accounts"); }
     finally { setLoading(false); }
   }, []);
@@ -101,19 +96,6 @@ export default function BillingAccountsPage() {
     searchFields: ["billingAccountCode", "billingAccountName", "contactPerson", "email"],
     pageSize: 10,
   });
-
-  // DEBUG: watch what the filters object actually looks like, and whether
-  // `filtered` changes when it does.
-  useEffect(() => {
-    console.log("[DEBUG] filters state:", JSON.stringify(filters));
-    console.log("[DEBUG] accounts.length:", accounts.length, "filtered.length:", filtered.length, "total:", total);
-  }, [filters, accounts, filtered, total]);
-
-  // DEBUG: wrap the filter handler so we see EXACTLY what value FilterSelect sends
-  const handleFilterDebug = (key: string, v: any) => {
-    console.log(`[DEBUG] handleFilter called with key="${key}" value=`, v, "typeof:", typeof v);
-    handleFilter(key, v);
-  };
 
   if (loading) return (
     <div className="flex min-h-[300px] items-center justify-center">
@@ -142,7 +124,10 @@ export default function BillingAccountsPage() {
         <div className="w-full sm:max-w-xs">
           <SearchBar value={rawSearch} onChange={handleSearch} placeholder="Search code, name, contact…" />
         </div>
-        <FilterSelect value={filters.accountStatus as string} onChange={v => handleFilterDebug("accountStatus", v)}
+        {/* FIX: FilterSelect + handleFilter now read/write "status" — the key
+            useTableFilters actually maintains and filters on — instead of the
+            unused "accountStatus" key that was never checked by the hook. */}
+        <FilterSelect value={filters.status as string} onChange={v => handleFilter("status", v)}
           options={STATUS_OPTS} placeholder="All Statuses" />
         <ResetButton onClick={resetFilters} active={hasActiveFilters} />
       </div>
@@ -466,8 +451,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         notes:               notes              || undefined,
         accountStatus:       status,
       };
-      // DEBUG: confirm the exact status value about to be sent
-      console.log("[DEBUG] submitting accountStatus:", JSON.stringify(status));
       if (editing) await apiPut(`/api/billing-accounts/${account!._id}`, payload);
       else         await apiPost("/api/billing-accounts", payload);
       onSaved(); onClose();
@@ -545,7 +528,7 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
                 options={["Email","Post","Portal","Manual"]} />
             </Field>
             <Field label="Account Status" required>
-              <Select value={status} onChange={v => { console.log("[DEBUG] status select changed to:", JSON.stringify(v)); setStatus(v); }} placeholder="Select status"
+              <Select value={status} onChange={setStatus} placeholder="Select status"
                 options={["Active","Inactive","Suspended","Closed"]} required />
             </Field>
             <div className="sm:col-span-2">
