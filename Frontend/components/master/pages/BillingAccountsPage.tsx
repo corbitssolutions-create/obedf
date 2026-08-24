@@ -160,7 +160,7 @@ export default function BillingAccountsPage() {
                   <td className="px-5 py-3.5">{a.contactPerson || "—"}</td>
                   <td className="px-5 py-3.5 text-gray-500">{a.email || "—"}</td>
                   <td className="px-5 py-3.5 font-mono text-xs">{a.creditLimit ? `R ${a.creditLimit.toLocaleString()}` : "—"}</td>
-                  {/* <td className="px-5 py-3.5"><StatusBadge status={a.accountStatus} /></td> */}
+                   <td className="px-5 py-3.5"><StatusBadge status={a.accountStatus} /></td> 
                   <td className="px-5 py-3.5">{a.customer?.name || "—"}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
