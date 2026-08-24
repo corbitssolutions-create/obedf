@@ -50,6 +50,14 @@ interface BillingAccount {
 
 interface LookupItem { _id: string; label: string; }
 
+// Helper function to normalize status - ensures "To Deliver" is never used
+const normalizeStatus = (status: string): string => {
+  if (!status) return "Active";
+  // If status is "To Deliver", treat it as "Active"
+  if (status === "To Deliver") return "Active";
+  return status;
+};
+
 const STATUS_OPTS = [
   { label: "Active",    value: "Active"    },
   { label: "Inactive",  value: "Inactive"  },
@@ -73,12 +81,12 @@ export default function BillingAccountsPage() {
       const res = await apiGet<{ success: boolean; data: BillingAccount[] }>(
         "/api/billing-accounts?limit=500&sort=billingAccountName:asc"
       );
-      // Map "To Deliver" to "Active" when fetching data
-      const mappedData = (res.data ?? []).map(account => ({
+      // Normalize all statuses - "To Deliver" becomes "Active"
+      const normalizedData = (res.data ?? []).map(account => ({
         ...account,
-        accountStatus: account.accountStatus === "To Deliver" ? "Active" : account.accountStatus
+        accountStatus: normalizeStatus(account.accountStatus)
       }));
-      setAccounts(mappedData);
+      setAccounts(normalizedData);
     } catch (e: any) { setError(e.message ?? "Failed to load billing accounts"); }
     finally { setLoading(false); }
   }, []);
@@ -249,7 +257,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [name,         setName]         = useState(acc?.billingAccountName ?? "");
   const [customerId,   setCustomerId]   = useState(typeof acc?.customer === "object" ? acc?.customer?._id ?? "" : "");
   const [branchId,     setBranchId]     = useState(typeof acc?.branch    === "object" ? acc?.branch?._id    ?? "" : acc?.branch ?? "");
-  const [status,       setStatus]       = useState(acc?.accountStatus ?? "Active");
+  // ALWAYS normalize status - never use "To Deliver"
+  const [status,       setStatus]       = useState(normalizeStatus(acc?.accountStatus ?? "Active"));
   const [billingCycle, setBillingCycle] = useState(acc?.billingCycle ?? "Monthly");
   const [invoiceFreq,  setInvoiceFreq]  = useState(acc?.invoiceFrequency ?? "Monthly");
   const [invoiceDel,   setInvoiceDel]   = useState(acc?.invoiceDeliveryMethod ?? "Email");
@@ -341,14 +350,12 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
 
   useEffect(() => {
     const a = account as any;
-    // Map "To Deliver" to "Active" when editing
-    const mappedStatus = a?.accountStatus === "To Deliver" ? "Active" : (a?.accountStatus ?? "Active");
-    
     setCode(a?.billingAccountCode ?? "");
     setName(a?.billingAccountName ?? "");
     setCustomerId(typeof a?.customer === "object" ? a?.customer?._id ?? "" : "");
     setBranchId(  typeof a?.branch   === "object" ? a?.branch?._id   ?? "" : a?.branch ?? "");
-    setStatus(mappedStatus);
+    // ALWAYS normalize the status - "To Deliver" becomes "Active"
+    setStatus(normalizeStatus(a?.accountStatus ?? "Active"));
     setBillingCycle(a?.billingCycle ?? "Monthly");
     setInvoiceFreq( a?.invoiceFrequency ?? "Monthly");
     setInvoiceDel(  a?.invoiceDeliveryMethod ?? "Email");
@@ -414,6 +421,9 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
     }
     setSubmitting(true); setFormError("");
     try {
+      // Ensure we never send "To Deliver" to the backend
+      const normalizedStatus = normalizeStatus(status);
+      
       const payload: Record<string, any> = {
         billingAccountCode:    code.trim().toUpperCase(),
         billingAccountName:    name.trim(),
@@ -466,7 +476,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         effectiveDate:       effectiveDate      || undefined,
         expiryDate:          expiryDate         || undefined,
         notes:               notes              || undefined,
-        accountStatus:       status,
+        // ALWAYS use normalized status - never "To Deliver"
+        accountStatus:       normalizedStatus,
       };
       if (editing) await apiPut(`/api/billing-accounts/${account!._id}`, payload);
       else         await apiPost("/api/billing-accounts", payload);
