@@ -9,10 +9,9 @@ import AddressSection, { AddressData, emptyAddress, makeAddressUpdater } from ".
 import { SearchBar, FilterSelect, ResetButton, SortIcon, Pagination, EmptyState, StatusBadge } from "../../ui/TableToolbar";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
-/** One row in the account-level extra charges table — references ExtraCharge master */
 interface AccountExtraCharge {
   _id?: string;
-  extraCharge: string;   // ExtraCharge master _id
+  extraCharge: string;
   amount: number;
   status: "Active" | "Inactive";
 }
@@ -34,7 +33,6 @@ interface BillingAccount {
   defaultPaymentType?: string;
   paymentCollectionType?: string;
   extraCharges?: AccountExtraCharge[];
-  // Sender auto-population fields
   senderName?: string;
   senderContactPerson?: string;
   senderPhone?: string;
@@ -74,6 +72,11 @@ export default function BillingAccountsPage() {
         "/api/billing-accounts?limit=500&sort=billingAccountName:asc"
       );
       setAccounts(res.data ?? []);
+      // DEBUG: confirm what statuses actually come back from the API
+      console.log(
+        "[DEBUG] fetched accounts - statuses:",
+        (res.data ?? []).map(a => ({ code: a.billingAccountCode, status: JSON.stringify(a.accountStatus) }))
+      );
     } catch (e: any) { setError(e.message ?? "Failed to load billing accounts"); }
     finally { setLoading(false); }
   }, []);
@@ -98,6 +101,19 @@ export default function BillingAccountsPage() {
     searchFields: ["billingAccountCode", "billingAccountName", "contactPerson", "email"],
     pageSize: 10,
   });
+
+  // DEBUG: watch what the filters object actually looks like, and whether
+  // `filtered` changes when it does.
+  useEffect(() => {
+    console.log("[DEBUG] filters state:", JSON.stringify(filters));
+    console.log("[DEBUG] accounts.length:", accounts.length, "filtered.length:", filtered.length, "total:", total);
+  }, [filters, accounts, filtered, total]);
+
+  // DEBUG: wrap the filter handler so we see EXACTLY what value FilterSelect sends
+  const handleFilterDebug = (key: string, v: any) => {
+    console.log(`[DEBUG] handleFilter called with key="${key}" value=`, v, "typeof:", typeof v);
+    handleFilter(key, v);
+  };
 
   if (loading) return (
     <div className="flex min-h-[300px] items-center justify-center">
@@ -126,7 +142,7 @@ export default function BillingAccountsPage() {
         <div className="w-full sm:max-w-xs">
           <SearchBar value={rawSearch} onChange={handleSearch} placeholder="Search code, name, contact…" />
         </div>
-        <FilterSelect value={filters.accountStatus as string} onChange={v => handleFilter("accountStatus", v)}
+        <FilterSelect value={filters.accountStatus as string} onChange={v => handleFilterDebug("accountStatus", v)}
           options={STATUS_OPTS} placeholder="All Statuses" />
         <ResetButton onClick={resetFilters} active={hasActiveFilters} />
       </div>
@@ -160,7 +176,7 @@ export default function BillingAccountsPage() {
                   <td className="px-5 py-3.5">{a.contactPerson || "—"}</td>
                   <td className="px-5 py-3.5 text-gray-500">{a.email || "—"}</td>
                   <td className="px-5 py-3.5 font-mono text-xs">{a.creditLimit ? `R ${a.creditLimit.toLocaleString()}` : "—"}</td>
-                   <td className="px-5 py-3.5"><StatusBadge status={a.accountStatus} /></td> 
+                  <td className="px-5 py-3.5"><StatusBadge status={a.accountStatus} /></td>
                   <td className="px-5 py-3.5">{a.customer?.name || "—"}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
@@ -230,7 +246,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const editing = !!account;
   const acc = account as any;
 
-  /* ── General ── */
   const [code,         setCode]         = useState(acc?.billingAccountCode ?? "");
   const [name,         setName]         = useState(acc?.billingAccountName ?? "");
   const [customerId,   setCustomerId]   = useState(typeof acc?.customer === "object" ? acc?.customer?._id ?? "" : "");
@@ -241,7 +256,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [invoiceDel,   setInvoiceDel]   = useState(acc?.invoiceDeliveryMethod ?? "Email");
   const [rateCardId,   setRateCardId]   = useState(typeof acc?.defaultRateCard === "object" ? acc?.defaultRateCard?._id ?? "" : acc?.defaultRateCard ?? "");
 
-  /* ── Financial ── */
   const [currencyId,    setCurrencyId]    = useState(typeof acc?.currency     === "object" ? acc?.currency?._id     ?? "" : acc?.currency ?? "");
   const [payTermsId,    setPayTermsId]    = useState(typeof acc?.paymentTerms === "object" ? acc?.paymentTerms?._id ?? "" : acc?.paymentTerms ?? "");
   const [creditLimit,   setCreditLimit]   = useState(acc?.creditLimit?.toString() ?? "");
@@ -251,12 +265,10 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [expiryDate,    setExpDate]       = useState(acc?.expiryDate?.slice(0, 10) ?? "");
   const [notes,         setNotes]         = useState(acc?.notes ?? "");
 
-  /* ── Contact ── */
   const [contactPerson, setContact]   = useState(acc?.contactPerson ?? "");
   const [email,         setEmail]     = useState(acc?.email ?? "");
   const [telephone,     setTelephone] = useState(acc?.telephone ?? "");
 
-  // ── Sender Information (auto-populates Waybill Sender section) ────────────
   const [senderName,          setSenderName]          = useState(acc?.senderName          ?? "");
   const [senderContactPerson, setSenderContactPerson] = useState(acc?.senderContactPerson ?? "");
   const [senderPhone,         setSenderPhone]         = useState(acc?.senderPhone         ?? "");
@@ -272,7 +284,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   });
   const updateSenderAddress = makeAddressUpdater(setSenderAddress);
 
-  /* ── Waybill defaults ── */
   const [billingContact,        setBillingContact]        = useState(acc?.billingContactPerson ?? "");
   const [billingEmail,          setBillingEmail]          = useState(acc?.billingEmail ?? "");
   const [billingPhone,          setBillingPhone]          = useState(acc?.billingPhone ?? "");
@@ -281,7 +292,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [defaultPaymentType,    setDefaultPaymentType]    = useState(acc?.defaultPaymentType ?? "");
   const [paymentCollectionType, setPaymentCollectionType] = useState(acc?.paymentCollectionType ?? "");
 
-  /* ── Account extra charges (ref-based) ── */
   const [extraCharges, setExtraCharges] = useState<AccountExtraCharge[]>(
     (acc?.extraCharges ?? []).map((c: any) => ({
       _id:         c._id,
@@ -291,12 +301,9 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
     }))
   );
 
-  /* ── Billing address ── */
   const [address, setAddress] = useState<AddressData>(emptyAddress());
   const updateAddress = makeAddressUpdater(setAddress);
 
-  
-  /* ── Lookup lists ── */
   const [customers,         setCustomers]         = useState<LookupItem[]>([]);
   const [branches,          setBranches]          = useState<LookupItem[]>([]);
   const [currencies,        setCurrencies]        = useState<LookupItem[]>([]);
@@ -310,7 +317,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [submitting, setSubmitting] = useState(false);
   const [formError,  setFormError]  = useState("");
 
-  /* ── Load lookups when modal opens ── */
   useEffect(() => {
     if (!isOpen) return;
     Promise.all([
@@ -334,7 +340,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
     }).catch(() => {});
   }, [isOpen]);
 
-  /* ── Sync state when account changes ── */
   useEffect(() => {
     const a = account as any;
     setCode(a?.billingAccountCode ?? "");
@@ -398,7 +403,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
     setFormError(""); setActiveTab("general");
   }, [account, isOpen]);
 
-  /* ── Submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim() || !name.trim() || !customerId) {
@@ -425,7 +429,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         contactPerson:         contactPerson || undefined,
         email:                 email        || undefined,
         telephone:             telephone    || undefined,
-        // Sender information — auto-populates Waybill Sender section
         senderName:            senderName            || undefined,
         senderContactPerson:   senderContactPerson   || undefined,
         senderPhone:           senderPhone           || undefined,
@@ -439,7 +442,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
           postalCode: senderAddress.postalCode || undefined,
           country:    senderAddress.country    || "South Africa",
         } : undefined,
-        /* waybill defaults */
         billingContactPerson:  billingContact         || undefined,
         billingEmail:          billingEmail           || undefined,
         billingPhone:          billingPhone           || undefined,
@@ -447,13 +449,11 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         defaultServiceType:    defaultServiceTypeId   || undefined,
         defaultPaymentType:    defaultPaymentType     || undefined,
         paymentCollectionType: paymentCollectionType  || undefined,
-        /* account extra charges — only rows with a charge selected */
         extraCharges: extraCharges.filter(c => c.extraCharge).map(c => ({
           extraCharge: c.extraCharge,
           amount:      c.amount,
           status:      c.status,
         })),
-        /* billing address */
         billingAddressLine1: address.building   || undefined,
         billingAddressLine2: address.street     || undefined,
         suburb:              address.suburb     || undefined,
@@ -466,6 +466,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         notes:               notes              || undefined,
         accountStatus:       status,
       };
+      // DEBUG: confirm the exact status value about to be sent
+      console.log("[DEBUG] submitting accountStatus:", JSON.stringify(status));
       if (editing) await apiPut(`/api/billing-accounts/${account!._id}`, payload);
       else         await apiPost("/api/billing-accounts", payload);
       onSaved(); onClose();
@@ -499,7 +501,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         </div>
       )}
 
-      {/* Tab bar */}
       <div className="mb-5 flex gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1">
         {TABS.map(t => (
           <button key={t.key} type="button" onClick={() => setActiveTab(t.key)}
@@ -512,7 +513,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
 
       <form id="ba-form" onSubmit={handleSubmit}>
 
-        {/* ── General ─────────────────────────────────────────────── */}
         {activeTab === "general" && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Account Code" required>
@@ -545,7 +545,7 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
                 options={["Email","Post","Portal","Manual"]} />
             </Field>
             <Field label="Account Status" required>
-              <Select value={status} onChange={setStatus} placeholder="Select status"
+              <Select value={status} onChange={v => { console.log("[DEBUG] status select changed to:", JSON.stringify(v)); setStatus(v); }} placeholder="Select status"
                 options={["Active","Inactive","Suspended","Closed"]} required />
             </Field>
             <div className="sm:col-span-2">
@@ -557,11 +557,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
           </div>
         )}
 
-        {/* ── Waybill Defaults ──────────────────────────────────── */}
         {activeTab === "defaults" && (
           <div className="space-y-6">
-
-            {/* Billing contact */}
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Billing Contact (auto-populates on Waybill)
@@ -585,7 +582,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
               </div>
             </div>
 
-            {/* Default config */}
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Default Configuration
@@ -612,7 +608,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
               </div>
             </div>
 
-            {/* Account extra charges — ref-based */}
             <div>
               <div className="mb-3 flex items-center justify-between">
                 <div>
@@ -685,7 +680,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
           </div>
         )}
 
-        {/* ── Financial ───────────────────────────────────────────── */}
         {activeTab === "financial" && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Currency">
@@ -726,11 +720,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
           </div>
         )}
 
-        {/* ── Contact & Address ────────────────────────────────────── */}
         {activeTab === "contact" && (
           <div className="space-y-5">
-
-            {/* Account Contact */}
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Account Contact
@@ -751,14 +742,12 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
               </div>
             </div>
 
-            {/* Billing Address */}
             <AddressSection
               title="Billing Address"
               values={address}
               onChange={updateAddress}
             />
 
-            {/* Sender Information — auto-populates Waybill Sender section */}
             <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4">
               <div className="mb-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
@@ -799,7 +788,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
                 />
               </div>
             </div>
-
           </div>
         )}
 
