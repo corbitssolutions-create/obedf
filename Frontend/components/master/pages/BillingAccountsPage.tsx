@@ -295,6 +295,7 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [address, setAddress] = useState<AddressData>(emptyAddress());
   const updateAddress = makeAddressUpdater(setAddress);
 
+  
   /* ── Lookup lists ── */
   const [customers,         setCustomers]         = useState<LookupItem[]>([]);
   const [branches,          setBranches]          = useState<LookupItem[]>([]);
