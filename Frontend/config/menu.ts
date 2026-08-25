@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   UserCog,
   Settings,
+ClipboardList ,
   Table2,
   type LucideIcon,
 } from "lucide-react";
@@ -58,7 +59,7 @@ const menu: MenuItem[] = [
       },
       {
         title: "Collections",
-        icon: Library,
+        icon: ClipboardList,
         children: [
           { title: "Collection Manifest",        href: "/operations/collections/collection-manifest" },
           { title: "Adhoc Collection", href: "/operations/collections/adhoc-collection" },
