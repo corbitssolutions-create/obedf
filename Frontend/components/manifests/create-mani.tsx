@@ -19,6 +19,36 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  Calendar,
+  MapPin,
+  Building,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  ArrowLeft,
+  RefreshCw,
+  Filter,
+  Download,
+  Edit,
+  MoreVertical,
+  Users,
+  Weight,
+  Box,
+  Route,
+  Navigation,
+  CalendarDays,
+  Clock4,
+  FileCheck,
+  ListChecks,
+  ClipboardCheck,
+  Receipt,
+  Fuel,
+  Toll,
+  Plus,
+  Minus,
+  X
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 
@@ -43,10 +73,6 @@ export interface ManifestFormData {
   assignedWaybillIds: string[];
   totalParcels: number;
   totalWeight: number;
-  // Presentation-only extras for the new full page layout.
-  // These are collected in the UI but are NOT sent to the API yet —
-  // wiring them up requires backend/schema changes, so submission
-  // logic on the manifests list page is left untouched.
   transportType?: "fleet" | "subcontractor";
   trailer?: string;
   assistantDriver?: string;
@@ -64,12 +90,12 @@ interface CreateManifestPageProps {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300";
+  "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-colors";
 
 const selectClass =
-  "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 appearance-none pr-8";
+  "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 appearance-none pr-8 transition-colors";
 
-const cardClass = "rounded-xl border border-gray-200 bg-white p-5 shadow-sm";
+const cardClass = "rounded-xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm hover:shadow-md transition-shadow";
 
 function todayISO() {
   const d = new Date();
@@ -102,7 +128,6 @@ export default function CreateManifestPage({
   const [routeId,   setRouteId]   = useState("");
   const [subcontractorId, setSubId] = useState("");
 
-  // Display labels (sent to backend as strings for the manifest)
   const [driverLabel,  setDriverLabel]  = useState("");
   const [vehicleLabel, setVehicleLabel] = useState("");
   const [routeLabel,   setRouteLabel]   = useState("");
@@ -114,7 +139,6 @@ export default function CreateManifestPage({
   const [contractors,  setContractors]  = useState<ContractorLookup[]>([]);
   const [lookupLoading, setLookupLoading] = useState(false);
 
-  // New, presentation-only fields to match the full-page layout
   const [transportType, setTransportType] = useState<"fleet" | "subcontractor">("fleet");
   const [trailer, setTrailer] = useState("");
   const [assistantDriver, setAssistantDriver] = useState("");
@@ -130,18 +154,16 @@ export default function CreateManifestPage({
   const [manualEntryValue, setManualEntryValue]   = useState("");
   const [scanFeedback, setScanFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Search / bulk actions for the manifest table (presentation-only, filters existing rows)
   const [tableSearch, setTableSearch] = useState("");
   const [subToggle, setSubToggle] = useState(true);
 
-  // Summary counters shown in the sidebar (Manifest Summary card)
   const [scanLog, setScanLog] = useState<ScanLogRow[]>([]);
   const [parcelLog, setParcelLog] = useState<ParcelLogRow[]>([]);
   const [duplicateScans, setDuplicateScans] = useState(0);
   const [scanErrors, setScanErrors] = useState(0);
   const [unknownParcels, setUnknownParcels] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load lookups on mount (page is only mounted while the user is on this screen)
   useEffect(() => {
     setLookupLoading(true);
     Promise.all([
@@ -154,14 +176,12 @@ export default function CreateManifestPage({
       setVehicles(ve.data ?? []);
       setRoutes(ro.data ?? []);
       setContractors(co.data ?? []);
-      // Set defaults to first item
       if (dr.data?.length) { setDriverId(dr.data[0]._id); setDriverLabel(dr.data[0].fullName); }
       if (ve.data?.length) { setVehicleId(ve.data[0]._id); setVehicleLabel(ve.data[0].registrationNumber); }
       if (ro.data?.length) { setRouteId(ro.data[0]._id); setRouteLabel(ro.data[0].name); }
     }).catch(() => {}).finally(() => setLookupLoading(false));
   }, []);
 
-  // Auto-fill vehicle when driver is selected
   useEffect(() => {
     const d = drivers.find((x) => x._id === driverId);
     if (!d) return;
@@ -172,7 +192,6 @@ export default function CreateManifestPage({
     }
   }, [driverId, drivers, vehicles]);
 
-  // Reset subcontractor selection when switching back to Company Fleet
   useEffect(() => {
     if (transportType === "fleet") {
       setSubId("");
@@ -276,6 +295,7 @@ export default function CreateManifestPage({
 
   const handleSubmit = () => {
     if (chosen.length === 0) return;
+    setIsSubmitting(true);
     onSubmit({
       manifestId,
       date: manifestDate,
@@ -295,7 +315,10 @@ export default function CreateManifestPage({
       plannedArrival,
       referenceNotes,
     });
-    resetForm();
+    setTimeout(() => {
+      resetForm();
+      setIsSubmitting(false);
+    }, 500);
   };
 
   const handlePrint = () => {
@@ -303,7 +326,7 @@ export default function CreateManifestPage({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/60 px-6 py-5">
+    <div className="min-h-screen bg-gray-50/60 px-3 py-4 md:px-6 md:py-5">
       {/* Header */}
       <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -311,58 +334,61 @@ export default function CreateManifestPage({
             onClick={onBack}
             className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition-colors hover:bg-blue-700"
           >
-            <FileText className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Capture Delivery Manifest</h1>
-            <p className="mt-0.5 text-sm text-gray-500">Create and load waybills and parcels onto this manifest.</p>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900 md:text-2xl">Capture Delivery Manifest</h1>
+            <p className="mt-0.5 text-xs text-gray-500 md:text-sm">Create and load waybills and parcels onto this manifest.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleSubmit}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
-            <Save className="h-4 w-4" /> Save Draft
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Draft
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
-            <Printer className="h-4 w-4" /> Print Manifest
+            <Printer className="h-4 w-4" /> Print
           </button>
           <button
             onClick={handleSubmit}
-            disabled={chosen.length === 0}
-            className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors ${
-              chosen.length === 0 ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            disabled={chosen.length === 0 || isSubmitting}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors ${
+              chosen.length === 0 || isSubmitting ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            <CheckCircle2 className="h-4 w-4" /> Complete Manifest
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            Complete
           </button>
         </div>
       </div>
 
       {lookupLoading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-600" />
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           <span className="ml-3 text-sm text-gray-500">Loading drivers, vehicles, routes…</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
-          {/* ================= Main column ================= */}
+          {/* Main column */}
           <div className="space-y-5">
             {/* 1. Manifest Details */}
             <div className={cardClass}>
               <SectionTitle number={1} title="Manifest Details" />
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <Field label="Manifest No. (Auto)">
                   <div className={`${inputClass} bg-gray-50 text-gray-500`}>{manifestId ?? "DM00012345"}</div>
                 </Field>
                 <Field label="Manifest Date" required>
                   <div className={`${inputClass} flex items-center justify-between bg-white text-gray-700`}>
                     <span>{formatDisplayDateSlash(manifestDate)}</span>
-                    <span className="text-gray-400">📅</span>
+                    <Calendar className="h-4 w-4 text-gray-400" />
                   </div>
                 </Field>
                 <Field label="Branch" required>
@@ -398,7 +424,7 @@ export default function CreateManifestPage({
                 <Field label="Planned Departure">
                   <div className={`${inputClass} flex items-center justify-between bg-white text-gray-700`}>
                     <span>{plannedDeparture || "13/07/2026 08:00"}</span>
-                    <span className="text-gray-400">📅</span>
+                    <CalendarDays className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
                     type="datetime-local"
@@ -410,7 +436,7 @@ export default function CreateManifestPage({
                 <Field label="Planned Arrival">
                   <div className={`${inputClass} flex items-center justify-between bg-white text-gray-700`}>
                     <span>{plannedArrival || "14/07/2026 18:00"}</span>
-                    <span className="text-gray-400">📅</span>
+                    <CalendarDays className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
                     type="datetime-local"
@@ -419,7 +445,7 @@ export default function CreateManifestPage({
                     className="sr-only"
                   />
                 </Field>
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2 lg:col-span-3">
                   <Field label="Reference / Notes">
                     <textarea
                       value={referenceNotes}
@@ -448,8 +474,8 @@ export default function CreateManifestPage({
                         transportType === "fleet" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      <Truck className={`h-5 w-5 ${transportType === "fleet" ? "text-blue-600" : "text-gray-400"}`} />
-                      <div>
+                      <Truck className={`h-5 w-5 flex-shrink-0 ${transportType === "fleet" ? "text-blue-600" : "text-gray-400"}`} />
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900">Company Fleet</p>
                         <p className="text-xs text-gray-500">Use company vehicles and drivers</p>
                       </div>
@@ -461,8 +487,8 @@ export default function CreateManifestPage({
                         transportType === "subcontractor" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      <UserIcon className={`h-5 w-5 ${transportType === "subcontractor" ? "text-blue-600" : "text-gray-400"}`} />
-                      <div>
+                      <UserIcon className={`h-5 w-5 flex-shrink-0 ${transportType === "subcontractor" ? "text-blue-600" : "text-gray-400"}`} />
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900">Subcontractor</p>
                         <p className="text-xs text-gray-500">Use subcontractor services</p>
                       </div>
@@ -576,10 +602,10 @@ export default function CreateManifestPage({
             <div className={cardClass}>
               <SectionTitle number={3} title="Loading / Scanning" />
 
-              <div className="mb-4 inline-flex rounded-lg border border-gray-200 p-1">
+              <div className="mb-4 inline-flex w-full rounded-lg border border-gray-200 p-1 sm:w-auto">
                 <button
                   onClick={() => setScanTab("waybill")}
-                  className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${
                     scanTab === "waybill" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
@@ -587,7 +613,7 @@ export default function CreateManifestPage({
                 </button>
                 <button
                   onClick={() => setScanTab("parcel")}
-                  className={`flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${
                     scanTab === "parcel" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
@@ -612,7 +638,7 @@ export default function CreateManifestPage({
                     />
                     <button
                       onClick={() => { addWaybillById(waybillScanValue, "Scan"); setWaybillScanValue(""); }}
-                      className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                     >
                       Scan
                     </button>
@@ -639,7 +665,7 @@ export default function CreateManifestPage({
                     />
                     <button
                       onClick={handleParcelScan}
-                      className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                     >
                       Scan
                     </button>
@@ -652,9 +678,10 @@ export default function CreateManifestPage({
               </div>
 
               {scanFeedback && (
-                <div className={`mt-3 rounded-lg px-3 py-2 text-xs font-medium ${
+                <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
                   scanFeedback.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
                 }`}>
+                  {scanFeedback.type === "success" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                   {scanFeedback.message}
                 </div>
               )}
@@ -675,7 +702,7 @@ export default function CreateManifestPage({
                   />
                   <button
                     onClick={() => { addWaybillById(manualEntryValue, "Manual"); setManualEntryValue(""); }}
-                    className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                    className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                   >
                     Add
                   </button>
@@ -687,109 +714,112 @@ export default function CreateManifestPage({
             <div className={cardClass}>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <SectionTitle number={4} title={`Waybills in this Manifest (${chosen.length})`} noMargin />
-                <div className="flex items-center gap-2">
-                  <div className="relative">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 sm:flex-initial">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
                     <input
                       value={tableSearch}
                       onChange={(e) => setTableSearch(e.target.value)}
                       placeholder="Search waybills..."
-                      className="w-52 rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 sm:w-52"
                     />
                   </div>
-                  <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
-                    Bulk Actions <ChevronDown className="h-3.5 w-3.5" />
+                  <button className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    Bulk <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="w-full min-w-[820px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/70">
-                      <th className="w-8 px-2 py-3"></th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Sender</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Service Type</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Loaded</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredChosen.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-400">
-                          No waybills loaded yet. Scan or add a waybill above.
-                        </td>
+                <div className="min-w-[820px]">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50/70">
+                        <th className="w-8 px-2 py-3"></th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Sender</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Service</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Loaded</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Actions</th>
                       </tr>
-                    ) : (
-                      filteredChosen.map((w, idx) => (
-                        <tr
-                          key={w.id}
-                          className={`text-sm text-gray-700 ${idx !== filteredChosen.length - 1 ? "border-b border-gray-50" : ""}`}
-                        >
-                          <td className="px-2 py-3 text-gray-400">
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </td>
-                          <td className="px-4 py-3 font-medium text-blue-600">{w.id}</td>
-                          <td className="px-4 py-3">{w.sender ?? "—"}</td>
-                          <td className="px-4 py-3">{w.receiver}</td>
-                          <td className="px-4 py-3">{w.serviceType ?? "Standard"}</td>
-                          <td className="px-4 py-3 text-center">{w.parcels}</td>
-                          <td className="px-4 py-3 text-center">{w.parcels} / {w.parcels}</td>
-                          <td className="px-4 py-3 text-center">{w.weight.toFixed(1)}</td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                              Complete
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-3">
-                              <Eye className="h-4 w-4 text-blue-500" />
-                              <button onClick={() => removeWaybill(w.id)} className="text-red-500 hover:text-red-600">
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
+                    </thead>
+                    <tbody>
+                      {filteredChosen.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-400">
+                            <Package className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+                            No waybills loaded yet. Scan or add a waybill above.
                           </td>
                         </tr>
-                      ))
+                      ) : (
+                        filteredChosen.map((w, idx) => (
+                          <tr
+                            key={w.id}
+                            className={`text-sm text-gray-700 ${idx !== filteredChosen.length - 1 ? "border-b border-gray-50" : ""}`}
+                          >
+                            <td className="px-2 py-3 text-gray-400">
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </td>
+                            <td className="px-4 py-3 font-medium text-blue-600">{w.id}</td>
+                            <td className="px-4 py-3">{w.sender ?? "—"}</td>
+                            <td className="px-4 py-3">{w.receiver}</td>
+                            <td className="px-4 py-3">{w.serviceType ?? "Standard"}</td>
+                            <td className="px-4 py-3 text-center">{w.parcels}</td>
+                            <td className="px-4 py-3 text-center">{w.parcels} / {w.parcels}</td>
+                            <td className="px-4 py-3 text-center">{w.weight.toFixed(1)}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                                <CheckCircle className="h-3 w-3" /> Complete
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-3">
+                                <Eye className="h-4 w-4 text-blue-500 cursor-pointer hover:text-blue-600" />
+                                <button onClick={() => removeWaybill(w.id)} className="text-red-500 hover:text-red-600 transition-colors">
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {filteredChosen.length > 0 && (
+                      <tfoot>
+                        <tr className="border-t border-gray-100 bg-gray-50/50 text-sm font-semibold text-gray-900">
+                          <td className="px-2 py-3" />
+                          <td className="px-4 py-3" colSpan={4}>TOTAL</td>
+                          <td className="px-4 py-3 text-center">{totalParcels}</td>
+                          <td className="px-4 py-3 text-center">{totalParcels} / {totalParcels}</td>
+                          <td className="px-4 py-3 text-center">{totalWeight.toFixed(1)}</td>
+                          <td className="px-4 py-3" colSpan={2} />
+                        </tr>
+                      </tfoot>
                     )}
-                  </tbody>
-                  {filteredChosen.length > 0 && (
-                    <tfoot>
-                      <tr className="border-t border-gray-100 bg-gray-50/50 text-sm font-semibold text-gray-900">
-                        <td className="px-2 py-3" />
-                        <td className="px-4 py-3" colSpan={4}>TOTAL</td>
-                        <td className="px-4 py-3 text-center">{totalParcels}</td>
-                        <td className="px-4 py-3 text-center">{totalParcels} / {totalParcels}</td>
-                        <td className="px-4 py-3 text-center">{totalWeight.toFixed(1)}</td>
-                        <td className="px-4 py-3" colSpan={2} />
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ================= Sidebar ================= */}
+          {/* Sidebar */}
           <div className="space-y-5">
             <div className={cardClass}>
               <SectionTitle icon={<ClipboardList className="h-4 w-4" />} title="Manifest Summary" />
               <div className="space-y-3">
-                <SummaryRow label="Waybills Loaded" value={chosen.length} />
-                <SummaryRow label="Parcels Loaded" value={totalParcels} />
-                <SummaryRow label="Total Pieces" value={totalParcels} />
-                <SummaryRow label="Total Weight" value={`${totalWeight.toFixed(2)} kg`} />
-                <SummaryRow label="Total Cubic" value="0.00 m³" />
+                <SummaryRow icon={<FileText className="h-4 w-4" />} label="Waybills Loaded" value={chosen.length} />
+                <SummaryRow icon={<Package className="h-4 w-4" />} label="Parcels Loaded" value={totalParcels} />
+                <SummaryRow icon={<Box className="h-4 w-4" />} label="Total Pieces" value={totalParcels} />
+                <SummaryRow icon={<Weight className="h-4 w-4" />} label="Total Weight" value={`${totalWeight.toFixed(2)} kg`} />
+                <SummaryRow icon={<Box className="h-4 w-4" />} label="Total Cubic" value="0.00 m³" />
                 <div className="my-1 border-t border-gray-100" />
-                <SummaryRow label="Duplicate Scans" value={duplicateScans} muted />
-                <SummaryRow label="Scan Errors" value={scanErrors} muted />
-                <SummaryRow label="Unknown Parcels" value={unknownParcels} muted />
+                <SummaryRow icon={<AlertCircle className="h-4 w-4" />} label="Duplicate Scans" value={duplicateScans} muted />
+                <SummaryRow icon={<XCircle className="h-4 w-4" />} label="Scan Errors" value={scanErrors} muted />
+                <SummaryRow icon={<AlertCircle className="h-4 w-4" />} label="Unknown Parcels" value={unknownParcels} muted />
               </div>
             </div>
 
@@ -818,9 +848,15 @@ export default function CreateManifestPage({
                   <span>Rate Type</span><span>-</span>
                 </div>
                 <div className="my-1 border-t border-gray-100" />
-                {["Base Cost", "Fuel Surcharge", "Toll Fees", "Other Charges"].map((label) => (
+                {[
+                  { icon: <Receipt className="h-3.5 w-3.5" />, label: "Base Cost" },
+                  { icon: <Fuel className="h-3.5 w-3.5" />, label: "Fuel Surcharge" },
+                  { icon: <Toll className="h-3.5 w-3.5" />, label: "Toll Fees" },
+                  { icon: <Plus className="h-3.5 w-3.5" />, label: "Other Charges" }
+                ].map(({ icon, label }) => (
                   <div key={label} className="flex items-center justify-between text-gray-500">
-                    <span>{label}</span><span>-</span>
+                    <span className="flex items-center gap-1.5">{icon} {label}</span>
+                    <span>-</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 font-semibold text-gray-900">
@@ -874,10 +910,12 @@ function SectionTitle({ icon, number, title, noMargin }: { icon?: React.ReactNod
   );
 }
 
-function SummaryRow({ label, value, muted }: { label: string; value: string | number; muted?: boolean }) {
+function SummaryRow({ icon, label, value, muted }: { icon?: React.ReactNode; label: string; value: string | number; muted?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
+      <span className="flex items-center gap-1.5 text-sm text-gray-500">
+        {icon} {label}
+      </span>
       <span className={`text-base font-semibold ${muted ? "text-gray-500" : "text-gray-900"}`}>{value}</span>
     </div>
   );
@@ -887,40 +925,45 @@ function RecentWaybillsTable({ rows }: { rows: ScanLogRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-gray-100 px-4 py-6 text-center text-sm text-gray-400">
+        <ScanLine className="mx-auto h-6 w-6 text-gray-300 mb-1" />
         No waybills scanned yet.
       </div>
     );
   }
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full min-w-[420px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/70">
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Sender</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
-            <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
-            <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, idx) => (
-            <tr key={`${r.id}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
-              <td className="px-3 py-2 font-medium text-blue-600">{r.id}</td>
-              <td className="px-3 py-2 text-gray-700">—</td>
-              <td className="px-3 py-2 text-gray-700">{r.receiver}</td>
-              <td className="px-3 py-2 text-center text-gray-700">{r.parcels}</td>
-              <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
-              <td className="px-3 py-2 text-gray-500">{r.time}</td>
-              <td className="px-3 py-2">
-                <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">Loaded</span>
-              </td>
+      <div className="min-w-[420px]">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/70">
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, idx) => (
+              <tr key={`${r.id}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
+                <td className="px-3 py-2 font-medium text-blue-600">{r.id}</td>
+                <td className="px-3 py-2 text-gray-700">{r.receiver}</td>
+                <td className="px-3 py-2 text-center text-gray-700">{r.parcels}</td>
+                <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
+                <td className="px-3 py-2 text-gray-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {r.time}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                    <CheckCircle className="h-3 w-3" /> Loaded
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -929,36 +972,43 @@ function RecentParcelsTable({ rows }: { rows: ParcelLogRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-gray-100 px-4 py-6 text-center text-sm text-gray-400">
+        <PackageSearch className="mx-auto h-6 w-6 text-gray-300 mb-1" />
         No parcels scanned yet.
       </div>
     );
   }
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full min-w-[420px] text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/70">
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Parcel No.</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
-            <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
-            <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, idx) => (
-            <tr key={`${r.parcelId}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
-              <td className="px-3 py-2 font-medium text-gray-900">{r.parcelId}</td>
-              <td className="px-3 py-2 text-blue-600">{r.waybillId}</td>
-              <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
-              <td className="px-3 py-2 text-gray-500">{r.time}</td>
-              <td className="px-3 py-2">
-                <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">Loaded</span>
-              </td>
+      <div className="min-w-[420px]">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/70">
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Parcel No.</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, idx) => (
+              <tr key={`${r.parcelId}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
+                <td className="px-3 py-2 font-medium text-gray-900">{r.parcelId}</td>
+                <td className="px-3 py-2 text-blue-600">{r.waybillId}</td>
+                <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
+                <td className="px-3 py-2 text-gray-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {r.time}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                    <CheckCircle className="h-3 w-3" /> Loaded
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
