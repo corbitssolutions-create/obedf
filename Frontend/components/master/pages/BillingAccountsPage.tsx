@@ -183,7 +183,9 @@ export default function BillingAccountsPage() {
                   <td className="px-5 py-3.5">{a.contactPerson || "—"}</td>
                   <td className="px-5 py-3.5 text-gray-500">{a.email || "—"}</td>
                   <td className="px-5 py-3.5 font-mono text-xs">{a.creditLimit ? `R ${a.creditLimit.toLocaleString()}` : "—"}</td>
-                  <td className="px-5 py-3.5"><StatusBadge status={a.accountStatus} /></td>
+                  <td className="px-5 py-3.5">
+                    <StatusBadge status={normalizeStatus(a.accountStatus)} />
+                  </td>
                   <td className="px-5 py-3.5">{a.customer?.name || "—"}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
@@ -212,7 +214,7 @@ export default function BillingAccountsPage() {
                 <p className="font-mono text-sm font-semibold text-blue-600">{a.billingAccountCode}</p>
                 <p className="text-sm font-medium text-gray-900">{a.billingAccountName}</p>
               </div>
-              <StatusBadge status={a.accountStatus} />
+              <StatusBadge status={normalizeStatus(a.accountStatus)} />
             </div>
             <p className="text-xs text-gray-500">{a.customer?.name} • {a.contactPerson}</p>
             <div className="mt-3 flex gap-2">
