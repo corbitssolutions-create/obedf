@@ -184,7 +184,7 @@ export default function BillingAccountsPage() {
                   <td className="px-5 py-3.5 font-mono text-xs">{a.creditLimit ? `R ${a.creditLimit.toLocaleString()}` : "—"}</td>
                   <td className="px-5 py-3.5">
                     {/* Only normalize at display time */}
-                    <StatusBadge status={normalizeStatusForDisplay(a.accountStatus)} />
+                    {a.accountStatus || "-"}
                   </td>
                   <td className="px-5 py-3.5">{a.customer?.name || "—"}</td>
                   <td className="px-5 py-3.5">
