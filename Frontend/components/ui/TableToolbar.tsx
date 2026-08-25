@@ -294,7 +294,7 @@ export function EmptyState({ message = "No records found.", colSpan = 6 }: Empty
 const badgeMap: Record<string, { cls: string; label?: string }> = {
   // ── Waybill statuses ─────────────────────────────────────────────────────
   "draft":        { cls: "bg-gray-100 text-gray-500",        label: "Draft"        },
-  "active":       { cls: "bg-blue-50 text-blue-600",         label: "To Deliver"   },
+  "active":       { cls: "bg-blue-50 text-blue-600",         label: "Active"   },
   "to deliver":   { cls: "bg-green-50 text-green-600",       label: "To Deliver"   },
   "to manifest":  { cls: "bg-violet-50 text-violet-700",     label: "To Manifest"  },
   "outstanding":  { cls: "bg-amber-50 text-amber-600",       label: "Outstanding"  },
