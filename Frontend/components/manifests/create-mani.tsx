@@ -20,35 +20,19 @@ import {
   ChevronRight,
   Eye,
   Calendar,
-  MapPin,
-  Building,
   Clock,
-  AlertCircle,
   CheckCircle,
   XCircle,
   Loader2,
   ArrowLeft,
-  RefreshCw,
-  Filter,
-  Download,
-  Edit,
-  MoreVertical,
-  Users,
-  Weight,
   Box,
-  Route,
-  Navigation,
-  CalendarDays,
-  Clock4,
-  FileCheck,
-  ListChecks,
-  ClipboardCheck,
+  Weight,
   Receipt,
   Fuel,
   Toll,
   Plus,
-  Minus,
-  X
+  AlertCircle,
+  CalendarDays
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 
@@ -111,32 +95,168 @@ function nowTime() {
   return new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
 }
 
-interface DriverLookup      { _id: string; fullName: string; status: string; currentVehicle?: { registrationNumber: string } | null; }
-interface VehicleLookup     { _id: string; registrationNumber: string; make?: string; status: string; }
-interface RouteLookup       { _id: string; name: string; code?: string; origin: string; destination: string; }
-interface ContractorLookup  { _id: string; name: string; }
+interface DriverLookup { _id: string; fullName: string; status: string; currentVehicle?: { registrationNumber: string } | null; }
+interface VehicleLookup { _id: string; registrationNumber: string; make?: string; status: string; }
+interface RouteLookup { _id: string; name: string; code?: string; origin: string; destination: string; }
+interface ContractorLookup { _id: string; name: string; }
 
 interface ScanLogRow { id: string; receiver: string; parcels: number; weight: number; time: string }
 interface ParcelLogRow { parcelId: string; waybillId: string; weight: number; time: string }
+
+// Field component - defined before usage
+function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-600">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// SectionTitle component
+function SectionTitle({ icon, number, title, noMargin }: { icon?: React.ReactNode; number?: number; title: string; noMargin?: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 ${noMargin ? "" : "mb-4"}`}>
+      {number !== undefined ? (
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+          {number}
+        </span>
+      ) : (
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+          {icon}
+        </span>
+      )}
+      <h3 className="text-sm font-semibold text-blue-600">{title}</h3>
+    </div>
+  );
+}
+
+// SummaryRow component
+function SummaryRow({ icon, label, value, muted }: { icon?: React.ReactNode; label: string; value: string | number; muted?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="flex items-center gap-1.5 text-sm text-gray-500">
+        {icon} {label}
+      </span>
+      <span className={`text-base font-semibold ${muted ? "text-gray-500" : "text-gray-900"}`}>{value}</span>
+    </div>
+  );
+}
+
+// RecentWaybillsTable component
+function RecentWaybillsTable({ rows }: { rows: ScanLogRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-100 px-4 py-6 text-center text-sm text-gray-400">
+        <ScanLine className="mx-auto h-6 w-6 text-gray-300 mb-1" />
+        No waybills scanned yet.
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-100">
+      <div className="min-w-[420px]">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/70">
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, idx) => (
+              <tr key={`${r.id}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
+                <td className="px-3 py-2 font-medium text-blue-600">{r.id}</td>
+                <td className="px-3 py-2 text-gray-700">{r.receiver}</td>
+                <td className="px-3 py-2 text-center text-gray-700">{r.parcels}</td>
+                <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
+                <td className="px-3 py-2 text-gray-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {r.time}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                    <CheckCircle className="h-3 w-3" /> Loaded
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// RecentParcelsTable component
+function RecentParcelsTable({ rows }: { rows: ParcelLogRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-100 px-4 py-6 text-center text-sm text-gray-400">
+        <PackageSearch className="mx-auto h-6 w-6 text-gray-300 mb-1" />
+        No parcels scanned yet.
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-100">
+      <div className="min-w-[420px]">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/70">
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Parcel No.</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
+              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
+              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, idx) => (
+              <tr key={`${r.parcelId}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
+                <td className="px-3 py-2 font-medium text-gray-900">{r.parcelId}</td>
+                <td className="px-3 py-2 text-blue-600">{r.waybillId}</td>
+                <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
+                <td className="px-3 py-2 text-gray-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> {r.time}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                    <CheckCircle className="h-3 w-3" /> Loaded
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default function CreateManifestPage({
   onBack, onSubmit, manifestId, waybillPool,
 }: CreateManifestPageProps) {
   const [manifestDate] = useState(() => todayISO());
-  const [driverId,  setDriverId]  = useState("");
+  const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
-  const [routeId,   setRouteId]   = useState("");
+  const [routeId, setRouteId] = useState("");
   const [subcontractorId, setSubId] = useState("");
 
-  const [driverLabel,  setDriverLabel]  = useState("");
+  const [driverLabel, setDriverLabel] = useState("");
   const [vehicleLabel, setVehicleLabel] = useState("");
-  const [routeLabel,   setRouteLabel]   = useState("");
-  const [subLabel,     setSubLabel]     = useState("None (Own Fleet)");
+  const [routeLabel, setRouteLabel] = useState("");
+  const [subLabel, setSubLabel] = useState("None (Own Fleet)");
 
-  const [drivers,      setDrivers]      = useState<DriverLookup[]>([]);
-  const [vehicles,     setVehicles]     = useState<VehicleLookup[]>([]);
-  const [routes,       setRoutes]       = useState<RouteLookup[]>([]);
-  const [contractors,  setContractors]  = useState<ContractorLookup[]>([]);
+  const [drivers, setDrivers] = useState<DriverLookup[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleLookup[]>([]);
+  const [routes, setRoutes] = useState<RouteLookup[]>([]);
+  const [contractors, setContractors] = useState<ContractorLookup[]>([]);
   const [lookupLoading, setLookupLoading] = useState(false);
 
   const [transportType, setTransportType] = useState<"fleet" | "subcontractor">("fleet");
@@ -149,9 +269,9 @@ export default function CreateManifestPage({
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scanTab, setScanTab] = useState<"waybill" | "parcel">("waybill");
-  const [waybillScanValue, setWaybillScanValue]   = useState("");
-  const [parcelScanValue,  setParcelScanValue]    = useState("");
-  const [manualEntryValue, setManualEntryValue]   = useState("");
+  const [waybillScanValue, setWaybillScanValue] = useState("");
+  const [parcelScanValue, setParcelScanValue] = useState("");
+  const [manualEntryValue, setManualEntryValue] = useState("");
   const [scanFeedback, setScanFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const [tableSearch, setTableSearch] = useState("");
@@ -179,7 +299,7 @@ export default function CreateManifestPage({
       if (dr.data?.length) { setDriverId(dr.data[0]._id); setDriverLabel(dr.data[0].fullName); }
       if (ve.data?.length) { setVehicleId(ve.data[0]._id); setVehicleLabel(ve.data[0].registrationNumber); }
       if (ro.data?.length) { setRouteId(ro.data[0]._id); setRouteLabel(ro.data[0].name); }
-    }).catch(() => {}).finally(() => setLookupLoading(false));
+    }).catch(() => { }).finally(() => setLookupLoading(false));
   }, []);
 
   useEffect(() => {
@@ -210,7 +330,7 @@ export default function CreateManifestPage({
     );
   });
   const totalParcels = chosen.reduce((s, w) => s + w.parcels, 0);
-  const totalWeight  = chosen.reduce((s, w) => s + w.weight, 0);
+  const totalWeight = chosen.reduce((s, w) => s + w.weight, 0);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -359,9 +479,8 @@ export default function CreateManifestPage({
           <button
             onClick={handleSubmit}
             disabled={chosen.length === 0 || isSubmitting}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors ${
-              chosen.length === 0 || isSubmitting ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors ${chosen.length === 0 || isSubmitting ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              }`}
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             Complete
@@ -470,9 +589,8 @@ export default function CreateManifestPage({
                     <button
                       type="button"
                       onClick={() => setTransportType("fleet")}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
-                        transportType === "fleet" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${transportType === "fleet" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
+                        }`}
                     >
                       <Truck className={`h-5 w-5 flex-shrink-0 ${transportType === "fleet" ? "text-blue-600" : "text-gray-400"}`} />
                       <div className="min-w-0">
@@ -483,9 +601,8 @@ export default function CreateManifestPage({
                     <button
                       type="button"
                       onClick={() => setTransportType("subcontractor")}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
-                        transportType === "subcontractor" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${transportType === "subcontractor" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
+                        }`}
                     >
                       <UserIcon className={`h-5 w-5 flex-shrink-0 ${transportType === "subcontractor" ? "text-blue-600" : "text-gray-400"}`} />
                       <div className="min-w-0">
@@ -605,17 +722,15 @@ export default function CreateManifestPage({
               <div className="mb-4 inline-flex w-full rounded-lg border border-gray-200 p-1 sm:w-auto">
                 <button
                   onClick={() => setScanTab("waybill")}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${
-                    scanTab === "waybill" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
-                  }`}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${scanTab === "waybill" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
+                    }`}
                 >
                   <ScanLine className="h-3.5 w-3.5" /> Scan Waybills
                 </button>
                 <button
                   onClick={() => setScanTab("parcel")}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${
-                    scanTab === "parcel" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
-                  }`}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${scanTab === "parcel" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
+                    }`}
                 >
                   <PackageSearch className="h-3.5 w-3.5" /> Scan Parcels
                 </button>
@@ -678,9 +793,8 @@ export default function CreateManifestPage({
               </div>
 
               {scanFeedback && (
-                <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
-                  scanFeedback.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
-                }`}>
+                <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${scanFeedback.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+                  }`}>
                   {scanFeedback.type === "success" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                   {scanFeedback.message}
                 </div>
@@ -878,137 +992,6 @@ export default function CreateManifestPage({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs font-medium text-gray-600">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function SectionTitle({ icon, number, title, noMargin }: { icon?: React.ReactNode; number?: number; title: string; noMargin?: boolean }) {
-  return (
-    <div className={`flex items-center gap-2 ${noMargin ? "" : "mb-4"}`}>
-      {number !== undefined ? (
-        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-          {number}
-        </span>
-      ) : (
-        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-          {icon}
-        </span>
-      )}
-      <h3 className="text-sm font-semibold text-blue-600">{title}</h3>
-    </div>
-  );
-}
-
-function SummaryRow({ icon, label, value, muted }: { icon?: React.ReactNode; label: string; value: string | number; muted?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="flex items-center gap-1.5 text-sm text-gray-500">
-        {icon} {label}
-      </span>
-      <span className={`text-base font-semibold ${muted ? "text-gray-500" : "text-gray-900"}`}>{value}</span>
-    </div>
-  );
-}
-
-function RecentWaybillsTable({ rows }: { rows: ScanLogRow[] }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-gray-100 px-4 py-6 text-center text-sm text-gray-400">
-        <ScanLine className="mx-auto h-6 w-6 text-gray-300 mb-1" />
-        No waybills scanned yet.
-      </div>
-    );
-  }
-  return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <div className="min-w-[420px]">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/70">
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, idx) => (
-              <tr key={`${r.id}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
-                <td className="px-3 py-2 font-medium text-blue-600">{r.id}</td>
-                <td className="px-3 py-2 text-gray-700">{r.receiver}</td>
-                <td className="px-3 py-2 text-center text-gray-700">{r.parcels}</td>
-                <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
-                <td className="px-3 py-2 text-gray-500 flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {r.time}
-                </td>
-                <td className="px-3 py-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
-                    <CheckCircle className="h-3 w-3" /> Loaded
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function RecentParcelsTable({ rows }: { rows: ParcelLogRow[] }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-gray-100 px-4 py-6 text-center text-sm text-gray-400">
-        <PackageSearch className="mx-auto h-6 w-6 text-gray-300 mb-1" />
-        No parcels scanned yet.
-      </div>
-    );
-  }
-  return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <div className="min-w-[420px]">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/70">
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Parcel No.</th>
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Time</th>
-              <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, idx) => (
-              <tr key={`${r.parcelId}-${idx}`} className={idx !== rows.length - 1 ? "border-b border-gray-50" : ""}>
-                <td className="px-3 py-2 font-medium text-gray-900">{r.parcelId}</td>
-                <td className="px-3 py-2 text-blue-600">{r.waybillId}</td>
-                <td className="px-3 py-2 text-center text-gray-700">{r.weight.toFixed(2)}</td>
-                <td className="px-3 py-2 text-gray-500 flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {r.time}
-                </td>
-                <td className="px-3 py-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
-                    <CheckCircle className="h-3 w-3" /> Loaded
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
