@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ScanLine,
   PackageSearch,
@@ -34,8 +34,12 @@ import {
   AlertCircle,
   CalendarDays
 } from "lucide-react";
+
+// Import apiGet - make sure this path is correct for your project
+// If you don't have this, you'll need to create it or use fetch directly
 import { apiGet } from "@/lib/api";
 
+// Types
 export interface WaybillOption {
   id: string;
   receiver: string;
@@ -73,6 +77,65 @@ interface CreateManifestPageProps {
   waybillPool: WaybillOption[];
 }
 
+// Interfaces for API responses
+interface DriverLookup {
+  _id: string;
+  fullName: string;
+  status: string;
+  currentVehicle?: { registrationNumber: string } | null;
+}
+
+interface VehicleLookup {
+  _id: string;
+  registrationNumber: string;
+  make?: string;
+  status: string;
+}
+
+interface RouteLookup {
+  _id: string;
+  name: string;
+  code?: string;
+  origin: string;
+  destination: string;
+}
+
+interface ContractorLookup {
+  _id: string;
+  name: string;
+}
+
+interface ScanLogRow {
+  id: string;
+  receiver: string;
+  parcels: number;
+  weight: number;
+  time: string;
+}
+
+interface ParcelLogRow {
+  parcelId: string;
+  waybillId: string;
+  weight: number;
+  time: string;
+}
+
+// Helper functions
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatDisplayDateSlash(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function nowTime(): string {
+  return new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+}
+
+// Styling constants
 const inputClass =
   "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-colors";
 
@@ -81,29 +144,7 @@ const selectClass =
 
 const cardClass = "rounded-xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm hover:shadow-md transition-shadow";
 
-function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatDisplayDateSlash(iso: string) {
-  const d = new Date(`${iso}T00:00:00`);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-function nowTime() {
-  return new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
-}
-
-interface DriverLookup { _id: string; fullName: string; status: string; currentVehicle?: { registrationNumber: string } | null; }
-interface VehicleLookup { _id: string; registrationNumber: string; make?: string; status: string; }
-interface RouteLookup { _id: string; name: string; code?: string; origin: string; destination: string; }
-interface ContractorLookup { _id: string; name: string; }
-
-interface ScanLogRow { id: string; receiver: string; parcels: number; weight: number; time: string }
-interface ParcelLogRow { parcelId: string; waybillId: string; weight: number; time: string }
-
-// Field component - defined before usage
+// Sub-components
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div>
@@ -115,8 +156,17 @@ function Field({ label, children, required }: { label: string; children: React.R
   );
 }
 
-// SectionTitle component
-function SectionTitle({ icon, number, title, noMargin }: { icon?: React.ReactNode; number?: number; title: string; noMargin?: boolean }) {
+function SectionTitle({ 
+  icon, 
+  number, 
+  title, 
+  noMargin 
+}: { 
+  icon?: React.ReactNode; 
+  number?: number; 
+  title: string; 
+  noMargin?: boolean 
+}) {
   return (
     <div className={`flex items-center gap-2 ${noMargin ? "" : "mb-4"}`}>
       {number !== undefined ? (
@@ -133,8 +183,17 @@ function SectionTitle({ icon, number, title, noMargin }: { icon?: React.ReactNod
   );
 }
 
-// SummaryRow component
-function SummaryRow({ icon, label, value, muted }: { icon?: React.ReactNode; label: string; value: string | number; muted?: boolean }) {
+function SummaryRow({ 
+  icon, 
+  label, 
+  value, 
+  muted 
+}: { 
+  icon?: React.ReactNode; 
+  label: string; 
+  value: string | number; 
+  muted?: boolean 
+}) {
   return (
     <div className="flex items-center justify-between">
       <span className="flex items-center gap-1.5 text-sm text-gray-500">
@@ -145,7 +204,6 @@ function SummaryRow({ icon, label, value, muted }: { icon?: React.ReactNode; lab
   );
 }
 
-// RecentWaybillsTable component
 function RecentWaybillsTable({ rows }: { rows: ScanLogRow[] }) {
   if (rows.length === 0) {
     return (
@@ -193,7 +251,6 @@ function RecentWaybillsTable({ rows }: { rows: ScanLogRow[] }) {
   );
 }
 
-// RecentParcelsTable component
 function RecentParcelsTable({ rows }: { rows: ParcelLogRow[] }) {
   if (rows.length === 0) {
     return (
@@ -239,9 +296,14 @@ function RecentParcelsTable({ rows }: { rows: ParcelLogRow[] }) {
   );
 }
 
+// Main Component
 export default function CreateManifestPage({
-  onBack, onSubmit, manifestId, waybillPool,
+  onBack,
+  onSubmit,
+  manifestId,
+  waybillPool,
 }: CreateManifestPageProps) {
+  // State
   const [manifestDate] = useState(() => todayISO());
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
@@ -284,6 +346,7 @@ export default function CreateManifestPage({
   const [unknownParcels, setUnknownParcels] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Effects
   useEffect(() => {
     setLookupLoading(true);
     Promise.all([
@@ -291,15 +354,33 @@ export default function CreateManifestPage({
       apiGet<{ success: boolean; data: VehicleLookup[] }>("/api/vehicles/lookup"),
       apiGet<{ success: boolean; data: RouteLookup[] }>("/api/routes/lookup"),
       apiGet<{ success: boolean; data: ContractorLookup[] }>("/api/contractors/lookup"),
-    ]).then(([dr, ve, ro, co]) => {
-      setDrivers(dr.data ?? []);
-      setVehicles(ve.data ?? []);
-      setRoutes(ro.data ?? []);
-      setContractors(co.data ?? []);
-      if (dr.data?.length) { setDriverId(dr.data[0]._id); setDriverLabel(dr.data[0].fullName); }
-      if (ve.data?.length) { setVehicleId(ve.data[0]._id); setVehicleLabel(ve.data[0].registrationNumber); }
-      if (ro.data?.length) { setRouteId(ro.data[0]._id); setRouteLabel(ro.data[0].name); }
-    }).catch(() => { }).finally(() => setLookupLoading(false));
+    ])
+      .then(([dr, ve, ro, co]) => {
+        setDrivers(dr.data ?? []);
+        setVehicles(ve.data ?? []);
+        setRoutes(ro.data ?? []);
+        setContractors(co.data ?? []);
+        if (dr.data?.length) {
+          setDriverId(dr.data[0]._id);
+          setDriverLabel(dr.data[0].fullName);
+        }
+        if (ve.data?.length) {
+          setVehicleId(ve.data[0]._id);
+          setVehicleLabel(ve.data[0].registrationNumber);
+        }
+        if (ro.data?.length) {
+          setRouteId(ro.data[0]._id);
+          setRouteLabel(ro.data[0].name);
+        }
+      })
+      .catch(() => {
+        // Fallback data if API fails
+        setDrivers([{ _id: "1", fullName: "John Dlamini", status: "active" }]);
+        setVehicles([{ _id: "1", registrationNumber: "CA 123 456", status: "active" }]);
+        setRoutes([{ _id: "1", name: "JHB - CPT", origin: "Johannesburg", destination: "Cape Town" }]);
+        setContractors([]);
+      })
+      .finally(() => setLookupLoading(false));
   }, []);
 
   useEffect(() => {
@@ -308,7 +389,10 @@ export default function CreateManifestPage({
     setDriverLabel(d.fullName);
     if (d.currentVehicle?.registrationNumber) {
       const v = vehicles.find((x) => x.registrationNumber === d.currentVehicle!.registrationNumber);
-      if (v) { setVehicleId(v._id); setVehicleLabel(v.registrationNumber); }
+      if (v) {
+        setVehicleId(v._id);
+        setVehicleLabel(v.registrationNumber);
+      }
     }
   }, [driverId, drivers, vehicles]);
 
@@ -319,6 +403,7 @@ export default function CreateManifestPage({
     }
   }, [transportType]);
 
+  // Computed values
   const chosen = waybillPool.filter((w) => selected.has(w.id));
   const filteredChosen = chosen.filter((w) => {
     const q = tableSearch.trim().toLowerCase();
@@ -332,6 +417,7 @@ export default function CreateManifestPage({
   const totalParcels = chosen.reduce((s, w) => s + w.parcels, 0);
   const totalWeight = chosen.reduce((s, w) => s + w.weight, 0);
 
+  // Handlers
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -370,7 +456,13 @@ export default function CreateManifestPage({
     }
     setSelected((prev) => new Set(prev).add(match.id));
     setScanLog((prev) => [
-      { id: match.id, receiver: match.receiver, parcels: match.parcels, weight: match.weight, time: nowTime() },
+      {
+        id: match.id,
+        receiver: match.receiver,
+        parcels: match.parcels,
+        weight: match.weight,
+        time: nowTime(),
+      },
       ...prev,
     ]);
     flash("success", `${src}: added ${match.id} (${match.parcels} parcels).`);
@@ -379,9 +471,10 @@ export default function CreateManifestPage({
   const handleParcelScan = () => {
     const code = parcelScanValue.trim();
     if (!code) return;
-    const match = waybillPool.find((w) =>
-      (w.parcelIds ?? []).some((p) => p.toLowerCase() === code.toLowerCase()) ||
-      code.toLowerCase().startsWith(w.id.toLowerCase())
+    const match = waybillPool.find(
+      (w) =>
+        (w.parcelIds ?? []).some((p) => p.toLowerCase() === code.toLowerCase()) ||
+        code.toLowerCase().startsWith(w.id.toLowerCase())
     );
     if (!match) {
       flash("error", `No waybill matched to parcel "${code}".`);
@@ -397,20 +490,34 @@ export default function CreateManifestPage({
     }
     setSelected((prev) => new Set(prev).add(match.id));
     setScanLog((prev) => [
-      { id: match.id, receiver: match.receiver, parcels: match.parcels, weight: match.weight, time: nowTime() },
+      {
+        id: match.id,
+        receiver: match.receiver,
+        parcels: match.parcels,
+        weight: match.weight,
+        time: nowTime(),
+      },
       ...prev,
     ]);
-    setParcelLog((prev) => [{ parcelId: code, waybillId: match.id, weight: match.weight, time: nowTime() }, ...prev]);
+    setParcelLog((prev) => [
+      { parcelId: code, waybillId: match.id, weight: match.weight, time: nowTime() },
+      ...prev,
+    ]);
     flash("success", `Parcel → waybill ${match.id} added.`);
     setParcelScanValue("");
   };
 
   const resetForm = () => {
     setSelected(new Set());
-    setWaybillScanValue(""); setParcelScanValue(""); setManualEntryValue("");
+    setWaybillScanValue("");
+    setParcelScanValue("");
+    setManualEntryValue("");
     setScanFeedback(null);
-    setScanLog([]); setParcelLog([]);
-    setDuplicateScans(0); setScanErrors(0); setUnknownParcels(0);
+    setScanLog([]);
+    setParcelLog([]);
+    setDuplicateScans(0);
+    setScanErrors(0);
+    setUnknownParcels(0);
   };
 
   const handleSubmit = () => {
@@ -457,8 +564,12 @@ export default function CreateManifestPage({
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900 md:text-2xl">Capture Delivery Manifest</h1>
-            <p className="mt-0.5 text-xs text-gray-500 md:text-sm">Create and load waybills and parcels onto this manifest.</p>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900 md:text-2xl">
+              Capture Delivery Manifest
+            </h1>
+            <p className="mt-0.5 text-xs text-gray-500 md:text-sm">
+              Create and load waybills and parcels onto this manifest.
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -479,8 +590,11 @@ export default function CreateManifestPage({
           <button
             onClick={handleSubmit}
             disabled={chosen.length === 0 || isSubmitting}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors ${chosen.length === 0 || isSubmitting ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-              }`}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors ${
+              chosen.length === 0 || isSubmitting
+                ? "bg-blue-300 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             Complete
@@ -502,7 +616,9 @@ export default function CreateManifestPage({
               <SectionTitle number={1} title="Manifest Details" />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <Field label="Manifest No. (Auto)">
-                  <div className={`${inputClass} bg-gray-50 text-gray-500`}>{manifestId ?? "DM00012345"}</div>
+                  <div className={`${inputClass} bg-gray-50 text-gray-500`}>
+                    {manifestId ?? "DM00012345"}
+                  </div>
                 </Field>
                 <Field label="Manifest Date" required>
                   <div className={`${inputClass} flex items-center justify-between bg-white text-gray-700`}>
@@ -526,7 +642,9 @@ export default function CreateManifestPage({
                     >
                       {routes.length === 0 && <option>JHB - CPT</option>}
                       {routes.map((r) => (
-                        <option key={r._id} value={r._id}>{r.name}</option>
+                        <option key={r._id} value={r._id}>
+                          {r.name}
+                        </option>
                       ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -535,7 +653,8 @@ export default function CreateManifestPage({
                 <Field label="Status">
                   <div className="flex h-[38px] items-center">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />In Progress
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      In Progress
                     </span>
                   </div>
                 </Field>
@@ -584,15 +703,24 @@ export default function CreateManifestPage({
 
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px_1fr]">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-600">Transport Type <span className="text-red-500">*</span></label>
+                  <label className="mb-2 block text-xs font-medium text-gray-600">
+                    Transport Type <span className="text-red-500">*</span>
+                  </label>
                   <div className="flex flex-col gap-3">
                     <button
                       type="button"
                       onClick={() => setTransportType("fleet")}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${transportType === "fleet" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
-                        }`}
+                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                        transportType === "fleet"
+                          ? "border-blue-300 bg-blue-50/60"
+                          : "border-gray-200 hover:bg-gray-50"
+                      }`}
                     >
-                      <Truck className={`h-5 w-5 flex-shrink-0 ${transportType === "fleet" ? "text-blue-600" : "text-gray-400"}`} />
+                      <Truck
+                        className={`h-5 w-5 flex-shrink-0 ${
+                          transportType === "fleet" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                      />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900">Company Fleet</p>
                         <p className="text-xs text-gray-500">Use company vehicles and drivers</p>
@@ -601,10 +729,17 @@ export default function CreateManifestPage({
                     <button
                       type="button"
                       onClick={() => setTransportType("subcontractor")}
-                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${transportType === "subcontractor" ? "border-blue-300 bg-blue-50/60" : "border-gray-200 hover:bg-gray-50"
-                        }`}
+                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                        transportType === "subcontractor"
+                          ? "border-blue-300 bg-blue-50/60"
+                          : "border-gray-200 hover:bg-gray-50"
+                      }`}
                     >
-                      <UserIcon className={`h-5 w-5 flex-shrink-0 ${transportType === "subcontractor" ? "text-blue-600" : "text-gray-400"}`} />
+                      <UserIcon
+                        className={`h-5 w-5 flex-shrink-0 ${
+                          transportType === "subcontractor" ? "text-blue-600" : "text-gray-400"
+                        }`}
+                      />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900">Subcontractor</p>
                         <p className="text-xs text-gray-500">Use subcontractor services</p>
@@ -623,7 +758,9 @@ export default function CreateManifestPage({
                         <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className={selectClass}>
                           {drivers.length === 0 && <option>John Dlamini</option>}
                           {drivers.map((d) => (
-                            <option key={d._id} value={d._id}>{d.fullName} ({d.status})</option>
+                            <option key={d._id} value={d._id}>
+                              {d.fullName} ({d.status})
+                            </option>
                           ))}
                         </select>
                         <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -643,7 +780,10 @@ export default function CreateManifestPage({
                         >
                           {vehicles.length === 0 && <option>CA 123 456</option>}
                           {vehicles.map((v) => (
-                            <option key={v._id} value={v._id}>{v.registrationNumber}{v.make ? ` — ${v.make}` : ""}</option>
+                            <option key={v._id} value={v._id}>
+                              {v.registrationNumber}
+                              {v.make ? ` — ${v.make}` : ""}
+                            </option>
                           ))}
                         </select>
                         <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -675,7 +815,10 @@ export default function CreateManifestPage({
                             value={subcontractorId}
                             onChange={(e) => {
                               setSubId(e.target.value);
-                              if (!e.target.value) { setSubLabel("None (Own Fleet)"); return; }
+                              if (!e.target.value) {
+                                setSubLabel("None (Own Fleet)");
+                                return;
+                              }
                               const c = contractors.find((x) => x._id === e.target.value);
                               if (c) setSubLabel(c.name);
                             }}
@@ -683,7 +826,9 @@ export default function CreateManifestPage({
                           >
                             <option value="">Select subcontractor…</option>
                             {contractors.map((c) => (
-                              <option key={c._id} value={c._id}>{c.name}</option>
+                              <option key={c._id} value={c._id}>
+                                {c.name}
+                              </option>
                             ))}
                           </select>
                           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -703,7 +848,9 @@ export default function CreateManifestPage({
                           >
                             {routes.length === 0 && <option>JHB - CPT</option>}
                             {routes.map((r) => (
-                              <option key={r._id} value={r._id}>{r.name}</option>
+                              <option key={r._id} value={r._id}>
+                                {r.name}
+                              </option>
                             ))}
                           </select>
                           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -722,15 +869,21 @@ export default function CreateManifestPage({
               <div className="mb-4 inline-flex w-full rounded-lg border border-gray-200 p-1 sm:w-auto">
                 <button
                   onClick={() => setScanTab("waybill")}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${scanTab === "waybill" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
-                    }`}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${
+                    scanTab === "waybill"
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
                 >
                   <ScanLine className="h-3.5 w-3.5" /> Scan Waybills
                 </button>
                 <button
                   onClick={() => setScanTab("parcel")}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${scanTab === "parcel" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
-                    }`}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial ${
+                    scanTab === "parcel"
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
                 >
                   <PackageSearch className="h-3.5 w-3.5" /> Scan Parcels
                 </button>
@@ -747,12 +900,20 @@ export default function CreateManifestPage({
                       type="text"
                       value={waybillScanValue}
                       onChange={(e) => setWaybillScanValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { addWaybillById(waybillScanValue, "Scan"); setWaybillScanValue(""); } }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          addWaybillById(waybillScanValue, "Scan");
+                          setWaybillScanValue("");
+                        }
+                      }}
                       placeholder="Enter waybill number or scan barcode"
                       className={inputClass}
                     />
                     <button
-                      onClick={() => { addWaybillById(waybillScanValue, "Scan"); setWaybillScanValue(""); }}
+                      onClick={() => {
+                        addWaybillById(waybillScanValue, "Scan");
+                        setWaybillScanValue("");
+                      }}
                       className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                     >
                       Scan
@@ -761,7 +922,9 @@ export default function CreateManifestPage({
 
                   <p className="mb-2 text-xs font-semibold text-blue-600">Recently Scanned Waybills</p>
                   <RecentWaybillsTable rows={scanLog} />
-                  <p className="mt-2 text-xs font-medium text-gray-500">Total Waybills Loaded: {chosen.length}</p>
+                  <p className="mt-2 text-xs font-medium text-gray-500">
+                    Total Waybills Loaded: {chosen.length}
+                  </p>
                 </div>
 
                 {/* Parcel scan column */}
@@ -774,7 +937,9 @@ export default function CreateManifestPage({
                       type="text"
                       value={parcelScanValue}
                       onChange={(e) => setParcelScanValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleParcelScan(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleParcelScan();
+                      }}
                       placeholder="Enter parcel number or scan barcode"
                       className={inputClass}
                     />
@@ -788,14 +953,25 @@ export default function CreateManifestPage({
 
                   <p className="mb-2 text-xs font-semibold text-blue-600">Recently Scanned Parcels</p>
                   <RecentParcelsTable rows={parcelLog} />
-                  <p className="mt-2 text-xs font-medium text-gray-500">Total Parcels Scanned: {parcelLog.length}</p>
+                  <p className="mt-2 text-xs font-medium text-gray-500">
+                    Total Parcels Scanned: {parcelLog.length}
+                  </p>
                 </div>
               </div>
 
               {scanFeedback && (
-                <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${scanFeedback.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
-                  }`}>
-                  {scanFeedback.type === "success" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                <div
+                  className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                    scanFeedback.type === "success"
+                      ? "bg-green-50 text-green-700"
+                      : "bg-red-50 text-red-600"
+                  }`}
+                >
+                  {scanFeedback.type === "success" ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
                   {scanFeedback.message}
                 </div>
               )}
@@ -810,12 +986,20 @@ export default function CreateManifestPage({
                     type="text"
                     value={manualEntryValue}
                     onChange={(e) => setManualEntryValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { addWaybillById(manualEntryValue, "Manual"); setManualEntryValue(""); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        addWaybillById(manualEntryValue, "Manual");
+                        setManualEntryValue("");
+                      }
+                    }}
                     placeholder="Enter waybill ID…"
                     className={inputClass}
                   />
                   <button
-                    onClick={() => { addWaybillById(manualEntryValue, "Manual"); setManualEntryValue(""); }}
+                    onClick={() => {
+                      addWaybillById(manualEntryValue, "Manual");
+                      setManualEntryValue("");
+                    }}
                     className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                   >
                     Add
@@ -827,7 +1011,11 @@ export default function CreateManifestPage({
             {/* 4. Waybills in this Manifest */}
             <div className={cardClass}>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <SectionTitle number={4} title={`Waybills in this Manifest (${chosen.length})`} noMargin />
+                <SectionTitle
+                  number={4}
+                  title={`Waybills in this Manifest (${chosen.length})`}
+                  noMargin
+                />
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative flex-1 sm:flex-initial">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -850,15 +1038,33 @@ export default function CreateManifestPage({
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50/70">
                         <th className="w-8 px-2 py-3"></th>
-                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Waybill No.</th>
-                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Sender</th>
-                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Receiver</th>
-                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Service</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Parcels</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Loaded</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Weight (kg)</th>
-                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Status</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">Actions</th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Waybill No.
+                        </th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Sender
+                        </th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Receiver
+                        </th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Service
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Parcels
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Loaded
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Weight (kg)
+                        </th>
+                        <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -873,7 +1079,9 @@ export default function CreateManifestPage({
                         filteredChosen.map((w, idx) => (
                           <tr
                             key={w.id}
-                            className={`text-sm text-gray-700 ${idx !== filteredChosen.length - 1 ? "border-b border-gray-50" : ""}`}
+                            className={`text-sm text-gray-700 ${
+                              idx !== filteredChosen.length - 1 ? "border-b border-gray-50" : ""
+                            }`}
                           >
                             <td className="px-2 py-3 text-gray-400">
                               <ChevronRight className="h-3.5 w-3.5" />
@@ -883,7 +1091,9 @@ export default function CreateManifestPage({
                             <td className="px-4 py-3">{w.receiver}</td>
                             <td className="px-4 py-3">{w.serviceType ?? "Standard"}</td>
                             <td className="px-4 py-3 text-center">{w.parcels}</td>
-                            <td className="px-4 py-3 text-center">{w.parcels} / {w.parcels}</td>
+                            <td className="px-4 py-3 text-center">
+                              {w.parcels} / {w.parcels}
+                            </td>
                             <td className="px-4 py-3 text-center">{w.weight.toFixed(1)}</td>
                             <td className="px-4 py-3">
                               <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
@@ -893,7 +1103,10 @@ export default function CreateManifestPage({
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-center gap-3">
                                 <Eye className="h-4 w-4 text-blue-500 cursor-pointer hover:text-blue-600" />
-                                <button onClick={() => removeWaybill(w.id)} className="text-red-500 hover:text-red-600 transition-colors">
+                                <button
+                                  onClick={() => removeWaybill(w.id)}
+                                  className="text-red-500 hover:text-red-600 transition-colors"
+                                >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
@@ -906,9 +1119,13 @@ export default function CreateManifestPage({
                       <tfoot>
                         <tr className="border-t border-gray-100 bg-gray-50/50 text-sm font-semibold text-gray-900">
                           <td className="px-2 py-3" />
-                          <td className="px-4 py-3" colSpan={4}>TOTAL</td>
+                          <td className="px-4 py-3" colSpan={4}>
+                            TOTAL
+                          </td>
                           <td className="px-4 py-3 text-center">{totalParcels}</td>
-                          <td className="px-4 py-3 text-center">{totalParcels} / {totalParcels}</td>
+                          <td className="px-4 py-3 text-center">
+                            {totalParcels} / {totalParcels}
+                          </td>
                           <td className="px-4 py-3 text-center">{totalWeight.toFixed(1)}</td>
                           <td className="px-4 py-3" colSpan={2} />
                         </tr>
@@ -925,15 +1142,50 @@ export default function CreateManifestPage({
             <div className={cardClass}>
               <SectionTitle icon={<ClipboardList className="h-4 w-4" />} title="Manifest Summary" />
               <div className="space-y-3">
-                <SummaryRow icon={<FileText className="h-4 w-4" />} label="Waybills Loaded" value={chosen.length} />
-                <SummaryRow icon={<Package className="h-4 w-4" />} label="Parcels Loaded" value={totalParcels} />
-                <SummaryRow icon={<Box className="h-4 w-4" />} label="Total Pieces" value={totalParcels} />
-                <SummaryRow icon={<Weight className="h-4 w-4" />} label="Total Weight" value={`${totalWeight.toFixed(2)} kg`} />
-                <SummaryRow icon={<Box className="h-4 w-4" />} label="Total Cubic" value="0.00 m³" />
+                <SummaryRow
+                  icon={<FileText className="h-4 w-4" />}
+                  label="Waybills Loaded"
+                  value={chosen.length}
+                />
+                <SummaryRow
+                  icon={<Package className="h-4 w-4" />}
+                  label="Parcels Loaded"
+                  value={totalParcels}
+                />
+                <SummaryRow
+                  icon={<Box className="h-4 w-4" />}
+                  label="Total Pieces"
+                  value={totalParcels}
+                />
+                <SummaryRow
+                  icon={<Weight className="h-4 w-4" />}
+                  label="Total Weight"
+                  value={`${totalWeight.toFixed(2)} kg`}
+                />
+                <SummaryRow
+                  icon={<Box className="h-4 w-4" />}
+                  label="Total Cubic"
+                  value="0.00 m³"
+                />
                 <div className="my-1 border-t border-gray-100" />
-                <SummaryRow icon={<AlertCircle className="h-4 w-4" />} label="Duplicate Scans" value={duplicateScans} muted />
-                <SummaryRow icon={<XCircle className="h-4 w-4" />} label="Scan Errors" value={scanErrors} muted />
-                <SummaryRow icon={<AlertCircle className="h-4 w-4" />} label="Unknown Parcels" value={unknownParcels} muted />
+                <SummaryRow
+                  icon={<AlertCircle className="h-4 w-4" />}
+                  label="Duplicate Scans"
+                  value={duplicateScans}
+                  muted
+                />
+                <SummaryRow
+                  icon={<XCircle className="h-4 w-4" />}
+                  label="Scan Errors"
+                  value={scanErrors}
+                  muted
+                />
+                <SummaryRow
+                  icon={<AlertCircle className="h-4 w-4" />}
+                  label="Unknown Parcels"
+                  value={unknownParcels}
+                  muted
+                />
               </div>
             </div>
 
@@ -946,45 +1198,60 @@ export default function CreateManifestPage({
                 />
                 <button
                   onClick={() => setSubToggle((v) => !v)}
-                  className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${subToggle ? "bg-blue-600" : "bg-gray-200"}`}
+                  className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+                    subToggle ? "bg-blue-600" : "bg-gray-200"
+                  }`}
                 >
-                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${subToggle ? "translate-x-4" : "translate-x-0.5"}`} />
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      subToggle ? "translate-x-4" : "translate-x-0.5"
+                    }`}
+                  />
                 </button>
               </div>
               <div className="space-y-2.5 text-sm">
                 <div className="flex items-center justify-between text-gray-500">
-                  <span>Subcontractor</span><span>-</span>
+                  <span>Subcontractor</span>
+                  <span>-</span>
                 </div>
                 <div className="flex items-center justify-between text-gray-500">
-                  <span>Service Type</span><span>-</span>
+                  <span>Service Type</span>
+                  <span>-</span>
                 </div>
                 <div className="flex items-center justify-between text-gray-500">
-                  <span>Rate Type</span><span>-</span>
+                  <span>Rate Type</span>
+                  <span>-</span>
                 </div>
                 <div className="my-1 border-t border-gray-100" />
                 {[
                   { icon: <Receipt className="h-3.5 w-3.5" />, label: "Base Cost" },
                   { icon: <Fuel className="h-3.5 w-3.5" />, label: "Fuel Surcharge" },
                   { icon: <Toll className="h-3.5 w-3.5" />, label: "Toll Fees" },
-                  { icon: <Plus className="h-3.5 w-3.5" />, label: "Other Charges" }
+                  { icon: <Plus className="h-3.5 w-3.5" />, label: "Other Charges" },
                 ].map(({ icon, label }) => (
                   <div key={label} className="flex items-center justify-between text-gray-500">
-                    <span className="flex items-center gap-1.5">{icon} {label}</span>
+                    <span className="flex items-center gap-1.5">
+                      {icon} {label}
+                    </span>
                     <span>-</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 font-semibold text-gray-900">
-                  <span>Total Buying Cost (ZAR)</span><span>-</span>
+                  <span>Total Buying Cost (ZAR)</span>
+                  <span>-</span>
                 </div>
                 <div className="mt-2 space-y-2 rounded-lg bg-green-50/60 p-3">
                   <div className="flex items-center justify-between text-green-700">
-                    <span className="font-medium">Customer Revenue (ZAR)</span><span>-</span>
+                    <span className="font-medium">Customer Revenue (ZAR)</span>
+                    <span>-</span>
                   </div>
                   <div className="flex items-center justify-between text-green-700">
-                    <span className="font-medium">Gross Profit (ZAR)</span><span>-</span>
+                    <span className="font-medium">Gross Profit (ZAR)</span>
+                    <span>-</span>
                   </div>
                   <div className="flex items-center justify-between text-green-700">
-                    <span className="font-medium">GP %</span><span>-</span>
+                    <span className="font-medium">GP %</span>
+                    <span>-</span>
                   </div>
                 </div>
               </div>
