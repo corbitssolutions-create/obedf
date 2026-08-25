@@ -52,7 +52,10 @@ interface LookupItem { _id: string; label: string; }
 
 // Helper function to normalize status for display only - ensures "To Deliver" is shown as "Active"
 const normalizeStatusForDisplay = (status: string): string => {
+    console.log('Original status:', status);
+
   if (!status) return "Active";
+  
   // If status is "To Deliver", display it as "Active"
   if (status === "To Deliver") return "Active";
   return status;
