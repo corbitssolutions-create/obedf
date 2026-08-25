@@ -50,10 +50,10 @@ interface BillingAccount {
 
 interface LookupItem { _id: string; label: string; }
 
-// Helper function to normalize status - ensures "To Deliver" is never used
-const normalizeStatus = (status: string): string => {
+// Helper function to normalize status for display only - ensures "To Deliver" is shown as "Active"
+const normalizeStatusForDisplay = (status: string): string => {
   if (!status) return "Active";
-  // If status is "To Deliver", treat it as "Active"
+  // If status is "To Deliver", display it as "Active"
   if (status === "To Deliver") return "Active";
   return status;
 };
@@ -81,12 +81,8 @@ export default function BillingAccountsPage() {
       const res = await apiGet<{ success: boolean; data: BillingAccount[] }>(
         "/api/billing-accounts?limit=500&sort=billingAccountName:asc"
       );
-      // Normalize all statuses - "To Deliver" becomes "Active"
-      const normalizedData = (res.data ?? []).map(account => ({
-        ...account,
-        accountStatus: normalizeStatus(account.accountStatus)
-      }));
-      setAccounts(normalizedData);
+      // Keep the original data as-is from the API
+      setAccounts(res.data ?? []);
     } catch (e: any) { setError(e.message ?? "Failed to load billing accounts"); }
     finally { setLoading(false); }
   }, []);
@@ -184,7 +180,8 @@ export default function BillingAccountsPage() {
                   <td className="px-5 py-3.5 text-gray-500">{a.email || "—"}</td>
                   <td className="px-5 py-3.5 font-mono text-xs">{a.creditLimit ? `R ${a.creditLimit.toLocaleString()}` : "—"}</td>
                   <td className="px-5 py-3.5">
-                    <StatusBadge status={normalizeStatus(a.accountStatus)} />
+                    {/* Only normalize at display time */}
+                    <StatusBadge status={normalizeStatusForDisplay(a.accountStatus)} />
                   </td>
                   <td className="px-5 py-3.5">{a.customer?.name || "—"}</td>
                   <td className="px-5 py-3.5">
@@ -214,7 +211,8 @@ export default function BillingAccountsPage() {
                 <p className="font-mono text-sm font-semibold text-blue-600">{a.billingAccountCode}</p>
                 <p className="text-sm font-medium text-gray-900">{a.billingAccountName}</p>
               </div>
-              <StatusBadge status={normalizeStatus(a.accountStatus)} />
+              {/* Only normalize at display time */}
+              <StatusBadge status={normalizeStatusForDisplay(a.accountStatus)} />
             </div>
             <p className="text-xs text-gray-500">{a.customer?.name} • {a.contactPerson}</p>
             <div className="mt-3 flex gap-2">
@@ -259,8 +257,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
   const [name,         setName]         = useState(acc?.billingAccountName ?? "");
   const [customerId,   setCustomerId]   = useState(typeof acc?.customer === "object" ? acc?.customer?._id ?? "" : "");
   const [branchId,     setBranchId]     = useState(typeof acc?.branch    === "object" ? acc?.branch?._id    ?? "" : acc?.branch ?? "");
-  // ALWAYS normalize status - never use "To Deliver"
-  const [status,       setStatus]       = useState(normalizeStatus(acc?.accountStatus ?? "Active"));
+  // Keep the original status value from the account
+  const [status,       setStatus]       = useState(acc?.accountStatus ?? "Active");
   const [billingCycle, setBillingCycle] = useState(acc?.billingCycle ?? "Monthly");
   const [invoiceFreq,  setInvoiceFreq]  = useState(acc?.invoiceFrequency ?? "Monthly");
   const [invoiceDel,   setInvoiceDel]   = useState(acc?.invoiceDeliveryMethod ?? "Email");
@@ -356,8 +354,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
     setName(a?.billingAccountName ?? "");
     setCustomerId(typeof a?.customer === "object" ? a?.customer?._id ?? "" : "");
     setBranchId(  typeof a?.branch   === "object" ? a?.branch?._id   ?? "" : a?.branch ?? "");
-    // ALWAYS normalize the status - "To Deliver" becomes "Active"
-    setStatus(normalizeStatus(a?.accountStatus ?? "Active"));
+    // Keep the original status value without normalization
+    setStatus(a?.accountStatus ?? "Active");
     setBillingCycle(a?.billingCycle ?? "Monthly");
     setInvoiceFreq( a?.invoiceFrequency ?? "Monthly");
     setInvoiceDel(  a?.invoiceDeliveryMethod ?? "Email");
@@ -423,9 +421,6 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
     }
     setSubmitting(true); setFormError("");
     try {
-      // Ensure we never send "To Deliver" to the backend
-      const normalizedStatus = normalizeStatus(status);
-      
       const payload: Record<string, any> = {
         billingAccountCode:    code.trim().toUpperCase(),
         billingAccountName:    name.trim(),
@@ -478,8 +473,8 @@ function BillingAccountModal({ isOpen, account, onClose, onSaved }: ModalProps) 
         effectiveDate:       effectiveDate      || undefined,
         expiryDate:          expiryDate         || undefined,
         notes:               notes              || undefined,
-        // ALWAYS use normalized status - never "To Deliver"
-        accountStatus:       normalizedStatus,
+        // Keep the original status value
+        accountStatus:       status,
       };
       if (editing) await apiPut(`/api/billing-accounts/${account!._id}`, payload);
       else         await apiPost("/api/billing-accounts", payload);
