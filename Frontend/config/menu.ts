@@ -59,15 +59,6 @@ const menu: MenuItem[] = [
         ],
       },
       {
-        title: "Collections",
-        icon: ClipboardList,
-        children: [
-          { title: "Collection Manifest",        href: "/operations/collections/collection-manifest" },
-          { title: "Adhoc Collection", href: "/operations/collections/adhoc-collection" },
-           // { title: "Adhoc Collection", href: "/operations/collections/adhoc-collection" },
-        ],
-      },
-       {
         title: "Deliveries",
         icon: Truck,
         children: [
