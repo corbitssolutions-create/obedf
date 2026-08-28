@@ -29,7 +29,7 @@ import {
   Weight,
   Receipt,
   Fuel,
-  Toll,
+  Coins,
   Plus,
   AlertCircle,
   CalendarDays
@@ -1230,7 +1230,7 @@ export default function CreateManifestPage({
                 {[
                   { icon: <Receipt className="h-3.5 w-3.5" />, label: "Base Cost" },
                   { icon: <Fuel className="h-3.5 w-3.5" />, label: "Fuel Surcharge" },
-                  { icon: <Toll className="h-3.5 w-3.5" />, label: "Toll Fees" },
+                  { icon: <Coins className="h-3.5 w-3.5" />, label: "Toll Fees" },
                   { icon: <Plus className="h-3.5 w-3.5" />, label: "Other Charges" },
                 ].map(({ icon, label }) => (
                   <div key={label} className="flex items-center justify-between text-gray-500">
