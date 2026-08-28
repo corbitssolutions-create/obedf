@@ -5,6 +5,8 @@ import CreateManifestPage from "@/components/manifests/create-mani";
 export default function CollectionManifestPage() {
   return (
     <CreateManifestPage
+      title="Collection Manifest"
+      subtitle="Create and load waybills and parcels onto collection manifests for pickup runs."
       onBack={() => {}}
       onSubmit={() => {}}
       waybillPool={[

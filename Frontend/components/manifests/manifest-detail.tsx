@@ -406,9 +406,11 @@ interface Props {
   manifestNo: string;
   manifestId: string;
   onBack: () => void;
+  title?: string;
+  subtitle?: string;
 }
 
-export default function ManifestDetailPage({ manifestNo, manifestId, onBack }: Props) {
+export default function ManifestDetailPage({ manifestNo, manifestId, onBack, title, subtitle }: Props) {
   const [manifest, setManifest] = useState<ManifestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -576,9 +578,9 @@ export default function ManifestDetailPage({ manifestNo, manifestId, onBack }: P
       {/* ── Page header ── */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Delivery Manifest Debrief</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{title || "Delivery Manifest Debrief"}</h1>
           <p className="mt-0.5 text-sm text-gray-500">
-            Scan waybills for successful delivery. Scan parcels or waybills under exceptions/returns.
+            {subtitle || "Scan waybills for successful delivery. Scan parcels or waybills under exceptions/returns."}
           </p>
         </div>
         <div className="flex items-center gap-2.5">

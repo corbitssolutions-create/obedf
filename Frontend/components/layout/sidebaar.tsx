@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Box, FileText, Truck, ArrowLeftRight, ClipboardList,
   Receipt, Banknote, FileSignature, BarChart3, Settings, ShieldCheck,
   ChevronDown, ChevronRight, LogOut, type LucideIcon,
-  MapPin,
+  MapPin, PackageCheck,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -42,6 +42,15 @@ const menuConfig: MenuNode[] = [
         children: [
           { title: "Delivery Manifest", href: "/operations/deliveries/delivery-manifest" },
           { title: "Delivery Manifest Debrief", href: "/operations/deliveries/delivery-manifest-debrief" },
+        ],
+      },
+      {
+        title: "Collections",
+        icon: PackageCheck,
+        children: [
+          { title: "Adhoc Collection", href: "/operations/collections/adhoc-collection" },
+          { title: "Collection Manifest", href: "/operations/collections/collection-manifest" },
+          { title: "Collection Debrief", href: "/operations/collections/collection-debrief" },
         ],
       },
       {

@@ -75,6 +75,8 @@ interface CreateManifestPageProps {
   onSubmit: (data: ManifestFormData) => void;
   manifestId?: string;
   waybillPool: WaybillOption[];
+  title?: string;
+  subtitle?: string;
 }
 
 // Interfaces for API responses
@@ -302,6 +304,8 @@ export default function CreateManifestPage({
   onSubmit,
   manifestId,
   waybillPool,
+  title,
+  subtitle,
 }: CreateManifestPageProps) {
   // State
   const [manifestDate] = useState(() => todayISO());
@@ -565,10 +569,10 @@ export default function CreateManifestPage({
           </button>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-gray-900 md:text-2xl">
-              Capture Delivery Manifest
+              {title || "Capture Delivery Manifest"}
             </h1>
             <p className="mt-0.5 text-xs text-gray-500 md:text-sm">
-              Create and load waybills and parcels onto this manifest.
+              {subtitle || "Create and load waybills and parcels onto this manifest."}
             </p>
           </div>
         </div>
