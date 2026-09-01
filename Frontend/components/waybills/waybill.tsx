@@ -457,9 +457,21 @@ export default function WaybillsPage() {
   }
 
   /* ── Option lists ── */
-  const customerOptions = Array.from(new Set(waybills.map(w => w.customer))).map(c => ({ label: c, value: c }));
-  const driverOptions   = Array.from(new Set(waybills.map(w => w.driver))).map(d => ({ label: d, value: d }));
-  const routeOptions    = Array.from(new Set(waybills.map(w => w.route))).map(r => ({ label: r, value: r }));
+  // FIX: Filter out empty/placeholder values and sort the options
+  const customerOptions = Array.from(new Set(waybills.map(w => w.customer)))
+    .filter(c => c && c !== "—")
+    .sort()
+    .map(c => ({ label: c, value: c }));
+  
+  const driverOptions = Array.from(new Set(waybills.map(w => w.driver)))
+    .filter(d => d && d !== "—")
+    .sort()
+    .map(d => ({ label: d, value: d }));
+  
+  const routeOptions = Array.from(new Set(waybills.map(w => w.route)))
+    .filter(r => r && r !== "—") // Remove empty and placeholder values
+    .sort()
+    .map(r => ({ label: r, value: r }));
 
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center bg-white">
