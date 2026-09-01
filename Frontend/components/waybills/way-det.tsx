@@ -252,15 +252,15 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const [masterDefaultCharges,setMasterDefaultCharges]= useState<ExtraChargeRow[]>([]);
 
   // ── Branch state ─────────────────────────────────────────────────────────
-  // AT Branch - detected from sender postal code (NOW this is the auto-detected one)
+  // From Branch - logged-in user's default branch (read-only from login) - POSITION 1
+  const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
+  
+  // AT Branch - detected from sender postal code - POSITION 2
   const [atBranch, setAtBranch] = useState<{_id:string;code:string;name:string}|null>(null);
   const [atBranchLoading, setAtBranchLoading] = useState(false);
   const [atBranchError,   setAtBranchError]   = useState<string>("");
-  
-  // From Branch - logged-in user's default branch (read-only from login) (NOW this is the default one)
-  const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
 
-  // To Branch - detected from receiver postal code
+  // To Branch - detected from receiver postal code - POSITION 3
   const [toBranch, setToBranch]     = useState<{_id:string;code:string;name:string}|null>(null);
   const [toBranchLoading, setToBranchLoading] = useState(false);
   const [toBranchError,   setToBranchError]   = useState<string>("");
@@ -281,7 +281,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   /* ── Initial data load ── */
   useEffect(() => {
-    // Load From Branch (logged-in user's default branch) - NOW this is the default one
+    // Load From Branch (logged-in user's default branch) - POSITION 1
     let userId: string | null = null;
     try {
       const u = localStorage.getItem("user");
@@ -463,7 +463,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
     }
   }, [billingAccounts, masterDefaultCharges]);
 
-  /* ── AT Branch lookup by sender postal code (NOW this is the auto-detected one) ── */
+  /* ── AT Branch lookup by sender postal code - POSITION 2 ── */
   const lookupAtBranch = useCallback(async (postalCode: string) => {
     const code = postalCode.trim();
     if (!code) { 
@@ -491,7 +491,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
     }
   }, []);
 
-  /* ── To Branch lookup by receiver postal code ── */
+  /* ── To Branch lookup by receiver postal code - POSITION 3 ── */
   const lookupToBranch = useCallback(async (postalCode: string) => {
     const code = postalCode.trim();
     if (!code) { setToBranch(null); setToBranchError(""); return; }
@@ -520,11 +520,11 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   const updateAddr = (which: "senderAddress"|"receiverAddress", field: keyof Address, val: string) => {
     setForm(p => ({ ...p, [which]: { ...p[which], [field]: val } }));
-    // When sender postal code changes → look up AT Branch (NOW this is the auto-detected one)
+    // When sender postal code changes → look up AT Branch (POSITION 2)
     if (which === "senderAddress" && field === "postalCode") {
       lookupAtBranch(val);
     }
-    // When receiver postal code changes → look up To Branch
+    // When receiver postal code changes → look up To Branch (POSITION 3)
     if (which === "receiverAddress" && field === "postalCode") {
       lookupToBranch(val);
     }
@@ -539,7 +539,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       senderContact:       c?.contact       ?? "",
       senderAddress:       c?.address       ?? emptyAddress(),
     }));
-    // Trigger AT Branch lookup when customer's postal code is known (NOW this is the auto-detected one)
+    // Trigger AT Branch lookup when customer's postal code is known (POSITION 2)
     if (c?.address?.postalCode) {
       lookupAtBranch(c.address.postalCode);
     }
@@ -554,7 +554,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       receiverContact:       c?.contact       ?? "",
       receiverAddress:       c?.address       ?? emptyAddress(),
     }));
-    // Trigger To Branch lookup when customer's postal code is known
+    // Trigger To Branch lookup when customer's postal code is known (POSITION 3)
     if (c?.address?.postalCode) {
       lookupToBranch(c.address.postalCode);
     }
@@ -811,7 +811,25 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </div>
 
-            {/* ── AT Branch — auto from sender postal code (NOW this is the auto-detected one) ── */}
+            {/* ── POSITION 1: From Branch — logged-in user's default branch (read-only) ── */}
+            <WField label="From Branch (Collection)">
+              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!fromBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
+                {fromBranch ? (
+                  <>
+                    <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                      {fromBranch.code}
+                    </span>
+                    <span className="text-sm text-gray-700 truncate">{fromBranch.name}</span>
+                  </>
+                ) : (
+                  <span className="text-amber-600 text-xs font-medium">
+                    ⚠ No branch assigned — contact admin to assign your branch
+                  </span>
+                )}
+              </div>
+            </WField>
+
+            {/* ── POSITION 2: AT Branch — auto from sender postal code ── */}
             <WField label="AT Branch (Collection)">
               <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${
                 atBranch ? "bg-gray-50" :
@@ -837,25 +855,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </WField>
 
-            {/* ── From Branch — logged-in user's default branch (read-only) (NOW this is the default one) ── */}
-            <WField label="From Branch (Collection)">
-              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!fromBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
-                {fromBranch ? (
-                  <>
-                    <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                      {fromBranch.code}
-                    </span>
-                    <span className="text-sm text-gray-700 truncate">{fromBranch.name}</span>
-                  </>
-                ) : (
-                  <span className="text-amber-600 text-xs font-medium">
-                    ⚠ No branch assigned — contact admin to assign your branch
-                  </span>
-                )}
-              </div>
-            </WField>
-
-            {/* ── To Branch — auto from receiver postal code ── */}
+            {/* ── POSITION 3: To Branch — auto from receiver postal code ── */}
             <WField label="To Branch (Delivery)">
               <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${
                 toBranch ? "bg-gray-50" :
@@ -882,7 +882,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
             </WField>
 
             {/* ── Live shipment type indicator ── */}
-            {(fromBranch || toBranch) && (
+            {(atBranch || toBranch) && (
               <div className="sm:col-span-2">
                 {atBranch && toBranch ? (
                   atBranch._id === toBranch._id ? (
