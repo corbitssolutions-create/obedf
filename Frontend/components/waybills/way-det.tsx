@@ -252,8 +252,10 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const [masterDefaultCharges,setMasterDefaultCharges]= useState<ExtraChargeRow[]>([]);
 
   // ── Branch state ─────────────────────────────────────────────────────────
-  const [atBranch,     setAtBranch]     = useState<{_id:string;code:string;name:string}|null>(null);
-  const [toBranch,     setToBranch]     = useState<{_id:string;code:string;name:string}|null>(null);
+  // From Branch - logged-in user's branch (read-only)
+  const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
+  // To Branch - detected from receiver postal code
+  const [toBranch, setToBranch]     = useState<{_id:string;code:string;name:string}|null>(null);
   const [toBranchLoading, setToBranchLoading] = useState(false);
   const [toBranchError,   setToBranchError]   = useState<string>("");
 
@@ -273,7 +275,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   /* ── Initial data load ── */
   useEffect(() => {
-    // Load AT Branch — first try localStorage, then fetch from API to get populated branch data
+    // Load From Branch (logged-in user's branch)
     let userId: string | null = null;
     try {
       const u = localStorage.getItem("user");
@@ -283,7 +285,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
         // Try to read if branches are already populated objects (code + name present)
         const b = parsed.branch || (Array.isArray(parsed.branches) && parsed.branches[0]) || null;
         if (b && b.code && b.name) {
-          setAtBranch({ _id: b._id || b, code: b.code, name: b.name });
+          setFromBranch({ _id: b._id || b, code: b.code, name: b.name });
         }
       }
     } catch {}
@@ -296,7 +298,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
           if (Array.isArray(branches) && branches.length > 0) {
             const b = branches[0];
             if (b?._id && b?.code) {
-              setAtBranch({ _id: b._id, code: b.code, name: b.name || b.code });
+              setFromBranch({ _id: b._id, code: b.code, name: b.name || b.code });
             }
           }
         })
@@ -380,6 +382,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       setForm(rawToFormData(editData));
     }
   }, [editData, isEditMode]);
+
   const handleBillingAccountChange = useCallback(async (baId: string) => {
     // Find the selected account from already-fetched lookup
     const ba = billingAccounts.find((b:any) => b._id === baId);
@@ -453,7 +456,29 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
     }
   }, [billingAccounts, masterDefaultCharges]);
 
-  /* ── TO Branch: look up by receiver postal code ── */
+  /* ── From Branch lookup by sender postal code ── */
+  const lookupFromBranch = useCallback(async (postalCode: string) => {
+    const code = postalCode.trim();
+    if (!code) { 
+      // Don't clear fromBranch if it's the user's default branch
+      return; 
+    }
+    try {
+      const res = await apiGet<{ success: boolean; data: any }>(
+        `/api/master/postal-codes/lookup-branch/${encodeURIComponent(code)}`
+      );
+      if (res.success && res.data.branch) {
+        // Only update if it's different from the logged-in user's branch
+        // The fromBranch should always show the logged-in user's branch
+        // This lookup is for display purposes only
+        setFromBranch(res.data.branch);
+      }
+    } catch {
+      // Silently fail - keep the user's default branch
+    }
+  }, []);
+
+  /* ── To Branch lookup by receiver postal code ── */
   const lookupToBranch = useCallback(async (postalCode: string) => {
     const code = postalCode.trim();
     if (!code) { setToBranch(null); setToBranchError(""); return; }
@@ -482,7 +507,11 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   const updateAddr = (which: "senderAddress"|"receiverAddress", field: keyof Address, val: string) => {
     setForm(p => ({ ...p, [which]: { ...p[which], [field]: val } }));
-    // When receiver postal code changes → look up TO Branch immediately
+    // When sender postal code changes → look up From Branch
+    if (which === "senderAddress" && field === "postalCode") {
+      lookupFromBranch(val);
+    }
+    // When receiver postal code changes → look up To Branch
     if (which === "receiverAddress" && field === "postalCode") {
       lookupToBranch(val);
     }
@@ -497,6 +526,10 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       senderContact:       c?.contact       ?? "",
       senderAddress:       c?.address       ?? emptyAddress(),
     }));
+    // Trigger From Branch lookup when customer's postal code is known
+    if (c?.address?.postalCode) {
+      lookupFromBranch(c.address.postalCode);
+    }
   };
 
   const handleReceiverSelect = (name: string) => {
@@ -508,7 +541,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       receiverContact:       c?.contact       ?? "",
       receiverAddress:       c?.address       ?? emptyAddress(),
     }));
-    // Trigger TO Branch lookup when customer's postal code is known
+    // Trigger To Branch lookup when customer's postal code is known
     if (c?.address?.postalCode) {
       lookupToBranch(c.address.postalCode);
     }
@@ -765,15 +798,15 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </div>
 
-            {/* ── AT Branch — auto from logged-in user (read-only) ── */}
-            <WField label="AT Branch (Collection)">
-              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!atBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
-                {atBranch ? (
+            {/* ── From Branch — auto from logged-in user (read-only) ── */}
+            <WField label="From Branch (Collection)">
+              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!fromBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
+                {fromBranch ? (
                   <>
                     <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                      {atBranch.code}
+                      {fromBranch.code}
                     </span>
-                    <span className="text-sm text-gray-700 truncate">{atBranch.name}</span>
+                    <span className="text-sm text-gray-700 truncate">{fromBranch.name}</span>
                   </>
                 ) : (
                   <span className="text-amber-600 text-xs font-medium">
@@ -783,8 +816,8 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </WField>
 
-            {/* ── TO Branch — auto from receiver postal code ── */}
-            <WField label="TO Branch (Delivery)">
+            {/* ── To Branch — auto from receiver postal code ── */}
+            <WField label="To Branch (Delivery)">
               <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${
                 toBranch ? "bg-gray-50" :
                 toBranchError ? "bg-amber-50 border-amber-200" :
@@ -810,10 +843,10 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
             </WField>
 
             {/* ── Live shipment type indicator ── */}
-            {(atBranch || toBranch) && (
+            {(fromBranch || toBranch) && (
               <div className="sm:col-span-2">
-                {atBranch && toBranch ? (
-                  atBranch._id === toBranch._id ? (
+                {fromBranch && toBranch ? (
+                  fromBranch._id === toBranch._id ? (
                     <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-4 py-2.5">
                       <span className="h-2 w-2 rounded-full bg-green-500" />
                       <p className="text-sm font-semibold text-green-700">Local Delivery</p>
@@ -824,7 +857,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
                       <span className="h-2 w-2 rounded-full bg-blue-500" />
                       <p className="text-sm font-semibold text-blue-700">Inter-Branch Delivery</p>
                       <p className="text-xs text-blue-600">
-                        — {atBranch.code} → {toBranch.code}, status will be set to <strong>To Manifest</strong>
+                        — {fromBranch.code} → {toBranch.code}, status will be set to <strong>To Manifest</strong>
                       </p>
                     </div>
                   )
@@ -1200,22 +1233,6 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
         {/* ── Payment Terms / Notes ── */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          {/* <Card title="Payment Terms">
-            <div className="grid grid-cols-2 gap-4">
-              <WField label="Payment Terms">
-                <WSelect value={form.paymentTerms} onChange={v => update("paymentTerms", v)}
-                  placeholder="Select" options={PAY_TERMS} />
-              </WField>
-              <WField label="Credit Days">
-                <input type="number" min={0} value={form.creditDays}
-                  onChange={e => update("creditDays", parseInt(e.target.value)||0)} className={inputCls} />
-              </WField>
-              <WField label="VAT %">
-                <input type="number" min={0} max={100} step="0.1" value={form.vatPercent}
-                  onChange={e => update("vatPercent", parseFloat(e.target.value)||0)} className={inputCls} />
-              </WField>
-            </div>
-          </Card> */}
           <Card title="Notes">
             <textarea value={form.notes} onChange={e => update("notes", e.target.value)}
               rows={4} placeholder="Enter any notes…" className={`${inputCls} resize-none`} />
