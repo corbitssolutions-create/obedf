@@ -69,7 +69,6 @@ interface DateRangeFilterProps {
 export function DateRangeFilter({ from, to, onFromChange, onToChange }: DateRangeFilterProps) {
   return (
     <div className="flex items-center gap-1.5">
-      <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
       <input
         type="date"
         value={from}
