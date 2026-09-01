@@ -252,8 +252,11 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const [masterDefaultCharges,setMasterDefaultCharges]= useState<ExtraChargeRow[]>([]);
 
   // ── Branch state ─────────────────────────────────────────────────────────
-  // From Branch - logged-in user's branch (read-only)
+  // From Branch - detected from sender postal code
   const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
+  const [fromBranchLoading, setFromBranchLoading] = useState(false);
+  const [fromBranchError,   setFromBranchError]   = useState<string>("");
+  
   // To Branch - detected from receiver postal code
   const [toBranch, setToBranch]     = useState<{_id:string;code:string;name:string}|null>(null);
   const [toBranchLoading, setToBranchLoading] = useState(false);
@@ -275,43 +278,13 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   /* ── Initial data load ── */
   useEffect(() => {
-    // Load From Branch (logged-in user's branch)
-    let userId: string | null = null;
-    try {
-      const u = localStorage.getItem("user");
-      if (u) {
-        const parsed = JSON.parse(u);
-        userId = parsed._id || parsed.id || null;
-        // Try to read if branches are already populated objects (code + name present)
-        const b = parsed.branch || (Array.isArray(parsed.branches) && parsed.branches[0]) || null;
-        if (b && b.code && b.name) {
-          setFromBranch({ _id: b._id || b, code: b.code, name: b.name });
-        }
-      }
-    } catch {}
-
-    // Always fetch from API to get the latest populated branch data
-    if (userId) {
-      apiGet<{ success: boolean; data: any }>(`/api/users/${userId}`)
-        .then(res => {
-          const branches = res.data?.branches;
-          if (Array.isArray(branches) && branches.length > 0) {
-            const b = branches[0];
-            if (b?._id && b?.code) {
-              setFromBranch({ _id: b._id, code: b.code, name: b.name || b.code });
-            }
-          }
-        })
-        .catch(() => {}); // silently fail — non-critical
-    }
-
     Promise.all([
       apiGet<any>("/api/customers/lookup"),
       apiGet<any>("/api/billing-accounts/lookup"),
       apiGet<any>("/api/master/service-types/lookup"),
       apiGet<any>("/api/master/rate-types/lookup"),
-      apiGet<any>("/api/master/incoterms/lookup"),      // NEW — dynamic incoterms
-      apiGet<any>("/api/master/extra-charges/defaults"), // NEW — auto-default charges
+      apiGet<any>("/api/master/incoterms/lookup"),
+      apiGet<any>("/api/master/extra-charges/defaults"),
     ]).then(([cu, ba, st, rt, inc, ec]) => {
       setCustomers((cu.data||[]).map((c:any) => ({
         id: c._id, name: c.name,
@@ -460,21 +433,27 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const lookupFromBranch = useCallback(async (postalCode: string) => {
     const code = postalCode.trim();
     if (!code) { 
-      // Don't clear fromBranch if it's the user's default branch
+      setFromBranch(null); 
+      setFromBranchError(""); 
       return; 
     }
+    setFromBranchLoading(true); 
+    setFromBranchError("");
     try {
       const res = await apiGet<{ success: boolean; data: any }>(
         `/api/master/postal-codes/lookup-branch/${encodeURIComponent(code)}`
       );
       if (res.success && res.data.branch) {
-        // Only update if it's different from the logged-in user's branch
-        // The fromBranch should always show the logged-in user's branch
-        // This lookup is for display purposes only
         setFromBranch(res.data.branch);
+      } else {
+        setFromBranch(null);
+        setFromBranchError(`Postal code ${code} not assigned to any branch`);
       }
     } catch {
-      // Silently fail - keep the user's default branch
+      setFromBranch(null);
+      setFromBranchError(`Postal code ${code} not found in master`);
+    } finally {
+      setFromBranchLoading(false);
     }
   }, []);
 
@@ -798,19 +777,27 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </div>
 
-            {/* ── From Branch — auto from logged-in user (read-only) ── */}
+            {/* ── From Branch — auto from sender postal code ── */}
             <WField label="From Branch (Collection)">
-              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!fromBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
-                {fromBranch ? (
+              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${
+                fromBranch ? "bg-gray-50" :
+                fromBranchError ? "bg-amber-50 border-amber-200" :
+                "bg-gray-50"
+              }`}>
+                {fromBranchLoading ? (
+                  <span className="text-xs text-blue-500 animate-pulse">🔍 Looking up postal code…</span>
+                ) : fromBranch ? (
                   <>
-                    <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                    <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
                       {fromBranch.code}
                     </span>
                     <span className="text-sm text-gray-700 truncate">{fromBranch.name}</span>
                   </>
+                ) : fromBranchError ? (
+                  <span className="text-xs text-amber-600">⚠ {fromBranchError}</span>
                 ) : (
-                  <span className="text-amber-600 text-xs font-medium">
-                    ⚠ No branch assigned — contact admin to assign your branch
+                  <span className="text-gray-400 text-xs">
+                    ↓ Auto-filled when you enter the sender postal code below
                   </span>
                 )}
               </div>
