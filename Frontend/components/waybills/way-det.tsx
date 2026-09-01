@@ -252,13 +252,13 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const [masterDefaultCharges,setMasterDefaultCharges]= useState<ExtraChargeRow[]>([]);
 
   // ── Branch state ─────────────────────────────────────────────────────────
-  // From Branch - detected from sender postal code
-  const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
-  const [fromBranchLoading, setFromBranchLoading] = useState(false);
-  const [fromBranchError,   setFromBranchError]   = useState<string>("");
-  
-  // AT Branch - logged-in user's default branch (read-only from login)
+  // AT Branch - detected from sender postal code (NOW this is the auto-detected one)
   const [atBranch, setAtBranch] = useState<{_id:string;code:string;name:string}|null>(null);
+  const [atBranchLoading, setAtBranchLoading] = useState(false);
+  const [atBranchError,   setAtBranchError]   = useState<string>("");
+  
+  // From Branch - logged-in user's default branch (read-only from login) (NOW this is the default one)
+  const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
 
   // To Branch - detected from receiver postal code
   const [toBranch, setToBranch]     = useState<{_id:string;code:string;name:string}|null>(null);
@@ -281,7 +281,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   /* ── Initial data load ── */
   useEffect(() => {
-    // Load AT Branch (logged-in user's default branch)
+    // Load From Branch (logged-in user's default branch) - NOW this is the default one
     let userId: string | null = null;
     try {
       const u = localStorage.getItem("user");
@@ -291,7 +291,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
         // Try to read if branches are already populated objects (code + name present)
         const b = parsed.branch || (Array.isArray(parsed.branches) && parsed.branches[0]) || null;
         if (b && b.code && b.name) {
-          setAtBranch({ _id: b._id || b, code: b.code, name: b.name });
+          setFromBranch({ _id: b._id || b, code: b.code, name: b.name });
         }
       }
     } catch {}
@@ -304,7 +304,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
           if (Array.isArray(branches) && branches.length > 0) {
             const b = branches[0];
             if (b?._id && b?.code) {
-              setAtBranch({ _id: b._id, code: b.code, name: b.name || b.code });
+              setFromBranch({ _id: b._id, code: b.code, name: b.name || b.code });
             }
           }
         })
@@ -463,31 +463,31 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
     }
   }, [billingAccounts, masterDefaultCharges]);
 
-  /* ── From Branch lookup by sender postal code ── */
-  const lookupFromBranch = useCallback(async (postalCode: string) => {
+  /* ── AT Branch lookup by sender postal code (NOW this is the auto-detected one) ── */
+  const lookupAtBranch = useCallback(async (postalCode: string) => {
     const code = postalCode.trim();
     if (!code) { 
-      setFromBranch(null); 
-      setFromBranchError(""); 
+      setAtBranch(null); 
+      setAtBranchError(""); 
       return; 
     }
-    setFromBranchLoading(true); 
-    setFromBranchError("");
+    setAtBranchLoading(true); 
+    setAtBranchError("");
     try {
       const res = await apiGet<{ success: boolean; data: any }>(
         `/api/master/postal-codes/lookup-branch/${encodeURIComponent(code)}`
       );
       if (res.success && res.data.branch) {
-        setFromBranch(res.data.branch);
+        setAtBranch(res.data.branch);
       } else {
-        setFromBranch(null);
-        setFromBranchError(`Postal code ${code} not assigned to any branch`);
+        setAtBranch(null);
+        setAtBranchError(`Postal code ${code} not assigned to any branch`);
       }
     } catch {
-      setFromBranch(null);
-      setFromBranchError(`Postal code ${code} not found in master`);
+      setAtBranch(null);
+      setAtBranchError(`Postal code ${code} not found in master`);
     } finally {
-      setFromBranchLoading(false);
+      setAtBranchLoading(false);
     }
   }, []);
 
@@ -520,9 +520,9 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   const updateAddr = (which: "senderAddress"|"receiverAddress", field: keyof Address, val: string) => {
     setForm(p => ({ ...p, [which]: { ...p[which], [field]: val } }));
-    // When sender postal code changes → look up From Branch
+    // When sender postal code changes → look up AT Branch (NOW this is the auto-detected one)
     if (which === "senderAddress" && field === "postalCode") {
-      lookupFromBranch(val);
+      lookupAtBranch(val);
     }
     // When receiver postal code changes → look up To Branch
     if (which === "receiverAddress" && field === "postalCode") {
@@ -539,9 +539,9 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       senderContact:       c?.contact       ?? "",
       senderAddress:       c?.address       ?? emptyAddress(),
     }));
-    // Trigger From Branch lookup when customer's postal code is known
+    // Trigger AT Branch lookup when customer's postal code is known (NOW this is the auto-detected one)
     if (c?.address?.postalCode) {
-      lookupFromBranch(c.address.postalCode);
+      lookupAtBranch(c.address.postalCode);
     }
   };
 
@@ -811,24 +811,24 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </div>
 
-            {/* ── From Branch — auto from sender postal code ── */}
-            <WField label="From Branch (Collection)">
+            {/* ── AT Branch — auto from sender postal code (NOW this is the auto-detected one) ── */}
+            <WField label="AT Branch (Collection)">
               <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${
-                fromBranch ? "bg-gray-50" :
-                fromBranchError ? "bg-amber-50 border-amber-200" :
+                atBranch ? "bg-gray-50" :
+                atBranchError ? "bg-amber-50 border-amber-200" :
                 "bg-gray-50"
               }`}>
-                {fromBranchLoading ? (
+                {atBranchLoading ? (
                   <span className="text-xs text-blue-500 animate-pulse">🔍 Looking up postal code…</span>
-                ) : fromBranch ? (
+                ) : atBranch ? (
                   <>
                     <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                      {fromBranch.code}
+                      {atBranch.code}
                     </span>
-                    <span className="text-sm text-gray-700 truncate">{fromBranch.name}</span>
+                    <span className="text-sm text-gray-700 truncate">{atBranch.name}</span>
                   </>
-                ) : fromBranchError ? (
-                  <span className="text-xs text-amber-600">⚠ {fromBranchError}</span>
+                ) : atBranchError ? (
+                  <span className="text-xs text-amber-600">⚠ {atBranchError}</span>
                 ) : (
                   <span className="text-gray-400 text-xs">
                     ↓ Auto-filled when you enter the sender postal code below
@@ -837,15 +837,15 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </WField>
 
-            {/* ── AT Branch — logged-in user's default branch (read-only) ── */}
-            <WField label="AT Branch (Collection)">
-              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!atBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
-                {atBranch ? (
+            {/* ── From Branch — logged-in user's default branch (read-only) (NOW this is the default one) ── */}
+            <WField label="From Branch (Collection)">
+              <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${!fromBranch ? "bg-amber-50 border-amber-200" : "bg-gray-50"}`}>
+                {fromBranch ? (
                   <>
                     <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                      {atBranch.code}
+                      {fromBranch.code}
                     </span>
-                    <span className="text-sm text-gray-700 truncate">{atBranch.name}</span>
+                    <span className="text-sm text-gray-700 truncate">{fromBranch.name}</span>
                   </>
                 ) : (
                   <span className="text-amber-600 text-xs font-medium">
@@ -884,8 +884,8 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
             {/* ── Live shipment type indicator ── */}
             {(fromBranch || toBranch) && (
               <div className="sm:col-span-2">
-                {fromBranch && toBranch ? (
-                  fromBranch._id === toBranch._id ? (
+                {atBranch && toBranch ? (
+                  atBranch._id === toBranch._id ? (
                     <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-4 py-2.5">
                       <span className="h-2 w-2 rounded-full bg-green-500" />
                       <p className="text-sm font-semibold text-green-700">Local Delivery</p>
@@ -896,7 +896,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
                       <span className="h-2 w-2 rounded-full bg-blue-500" />
                       <p className="text-sm font-semibold text-blue-700">Inter-Branch Delivery</p>
                       <p className="text-xs text-blue-600">
-                        — {fromBranch.code} → {toBranch.code}, status will be set to <strong>To Manifest</strong>
+                        — {atBranch.code} → {toBranch.code}, status will be set to <strong>To Manifest</strong>
                       </p>
                     </div>
                   )
