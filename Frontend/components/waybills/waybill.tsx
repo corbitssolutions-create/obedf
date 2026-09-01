@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, User, MapPin, Package, Calendar, Pencil, Trash2, Loader2 } from "lucide-react";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
 import { useTableFilters } from "../hooks/useTableFilters";
@@ -15,8 +15,8 @@ import CreateWaybillPage, { WaybillFormData } from "./way-det";
 type Status = "Draft" | "Active" | "Cancelled" | "Delivered" | "Outstanding" | "Failed";
 
 interface Waybill {
-  _id:      string;   // Mongo ObjectId — used for edit/delete API calls
-  id:       string;   // waybillNo — displayed in table
+  _id:      string;
+  id:       string;
   customer: string;
   receiver: string;
   driver:   string;
@@ -26,7 +26,8 @@ interface Waybill {
   weight:   number;
   status:   Status;
   date:     string;
-  raw:      any;      // full raw API response — used to pre-fill edit form
+  rawDate?: string;  // Store original date for filtering
+  raw:      any;
 }
 
 const STATUS_OPTIONS = [
@@ -110,6 +111,10 @@ export default function WaybillsPage() {
   const [customerFilter, setCustomerFilter] = useState("");
   const [driverFilter,   setDriverFilter]   = useState("");
   const [routeFilter,    setRouteFilter]    = useState("");
+  
+  // Date range filter state - managed separately for proper filtering
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // Role — read from localStorage (set at login)
   const [userRole, setUserRole] = useState<string>("");
@@ -129,6 +134,11 @@ export default function WaybillsPage() {
         setWaybills(
           (data.data || []).map((item: any) => {
             const w = item.parcels?.reduce((s: number, p: any) => s + (p.weight || 0), 0) || 0;
+            // Store both formatted and raw date for filtering
+            const rawDate = item.date;
+            const formattedDate = new Date(item.date).toLocaleDateString("en-ZA", {
+              day: "2-digit", month: "2-digit", year: "numeric",
+            });
             return {
               _id:      item._id,
               id:       item.waybillNo,
@@ -140,9 +150,8 @@ export default function WaybillsPage() {
               parcels:  item.quantity  || 1,
               weight:   Math.round(w * 10) / 10,
               status:   item.status,
-              date:     new Date(item.date).toLocaleDateString("en-ZA", {
-                day: "2-digit", month: "2-digit", year: "numeric",
-              }),
+              date:     formattedDate,
+              rawDate:  rawDate,  // Store for filtering
               raw: item,
             };
           })
@@ -157,7 +166,7 @@ export default function WaybillsPage() {
 
   useEffect(() => { fetchWaybills(); }, [fetchWaybills]);
 
-  /* ── Build payload helper (shared by create + edit) ── */
+  /* ── Build payload helper ── */
   const buildPayload = (data: WaybillFormData) => ({
     billingAccount:        data.billingAccountId || undefined,
     sender:                data.sender,
@@ -264,52 +273,132 @@ export default function WaybillsPage() {
     }
   };
 
-  /* ── Table filters ── */
-  const {
-    paginated, filtered, total,
-    rawSearch, handleSearch,
-    filters, handleFilter, handleDateRange,
-    sort, handleSort,
-    page, setPage, pageSize, handlePageSize, totalPages,
-    resetFilters, hasActiveFilters,
-  } = useTableFilters<Waybill>({
-    data: waybills,
-    searchFields: ["id", "customer", "receiver", "driver", "vehicle", "route"],
-    pageSize: 10,
-    filterFn: (item) => {
-      if (customerFilter && item.customer !== customerFilter) return false;
-      if (driverFilter   && item.driver   !== driverFilter)   return false;
-      if (routeFilter    && item.route    !== routeFilter)     return false;
-      return true;
-    },
-  });
+  /* ── Filter and paginate data manually ── */
+  const filteredData = useMemo(() => {
+    let result = [...waybills];
 
-  // Track if any date range filter is active
-  const hasDateRangeActive = !!(filters.dateRange?.from || filters.dateRange?.to);
-  
-  // Check if any filter is active (including date range)
-  const anyActive = hasActiveFilters || 
-                    !!customerFilter || 
-                    !!driverFilter || 
-                    !!routeFilter ||
-                    hasDateRangeActive;
-
-  // Reset all filters including date range
-  const handleReset = () => {
-    resetFilters();
-    setCustomerFilter(""); 
-    setDriverFilter(""); 
-    setRouteFilter("");
-    // Clear date range if it's active
-    if (hasDateRangeActive) {
-      handleDateRange({ from: "", to: "" });
+    // Search filter
+    const search = (document.querySelector('input[type="text"]') as HTMLInputElement)?.value || "";
+    if (search.trim()) {
+      const term = search.toLowerCase().trim();
+      result = result.filter(w => 
+        w.id.toLowerCase().includes(term) ||
+        w.customer.toLowerCase().includes(term) ||
+        w.receiver.toLowerCase().includes(term) ||
+        w.driver.toLowerCase().includes(term) ||
+        w.vehicle.toLowerCase().includes(term) ||
+        w.route.toLowerCase().includes(term)
+      );
     }
+
+    // Status filter
+    const status = (document.querySelector('select[placeholder="All Statuses"]') as HTMLSelectElement)?.value || "";
+    if (status) {
+      result = result.filter(w => w.status === status);
+    }
+
+    // Customer filter
+    if (customerFilter) {
+      result = result.filter(w => w.customer === customerFilter);
+    }
+
+    // Driver filter
+    if (driverFilter) {
+      result = result.filter(w => w.driver === driverFilter);
+    }
+
+    // Route filter
+    if (routeFilter) {
+      result = result.filter(w => w.route === routeFilter);
+    }
+
+    // Date range filter - properly filter by date
+    if (dateFrom || dateTo) {
+      result = result.filter(w => {
+        if (!w.rawDate) return false;
+        const itemDate = new Date(w.rawDate);
+        // Reset time part for proper date comparison
+        itemDate.setHours(0, 0, 0, 0);
+        
+        if (dateFrom) {
+          const fromDate = new Date(dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (itemDate < fromDate) return false;
+        }
+        
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (itemDate > toDate) return false;
+        }
+        
+        return true;
+      });
+    }
+
+    // Sort
+    // (sorting logic here if needed)
+
+    return result;
+  }, [waybills, customerFilter, driverFilter, routeFilter, dateFrom, dateTo]);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
+  const total = filteredData.length;
+  const totalPages = Math.ceil(total / pageSize);
+  const start = (page - 1) * pageSize;
+  const paginated = filteredData.slice(start, start + pageSize);
+
+  // Track active filters
+  const hasActiveFilters = !!(dateFrom || dateTo || customerFilter || driverFilter || routeFilter);
+  const hasDateRangeActive = !!(dateFrom || dateTo);
+
+  // Reset function
+  const handleReset = () => {
+    setDateFrom("");
+    setDateTo("");
+    setCustomerFilter("");
+    setDriverFilter("");
+    setRouteFilter("");
+    setPage(1);
+    // Also reset search and status if needed
+    const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+    if (searchInput) searchInput.value = "";
+    const statusSelect = document.querySelector('select[placeholder="All Statuses"]') as HTMLSelectElement;
+    if (statusSelect) statusSelect.value = "";
   };
 
   // Handle quick date selection
   const handleQuickDateSelect = (from: string, to: string) => {
-    handleDateRange({ from, to });
-    // Reset to page 1 when applying date filter
+    setDateFrom(from);
+    setDateTo(to);
+    setPage(1);
+  };
+
+  // Handle date range changes
+  const handleDateFromChange = (from: string) => {
+    setDateFrom(from);
+    setPage(1);
+  };
+
+  const handleDateToChange = (to: string) => {
+    setDateTo(to);
+    setPage(1);
+  };
+
+  // Handle search
+  const handleSearch = (value: string) => {
+    const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+    if (searchInput) searchInput.value = value;
+    setPage(1);
+  };
+
+  // Handle status filter
+  const handleStatusFilter = (value: string) => {
+    const statusSelect = document.querySelector('select[placeholder="All Statuses"]') as HTMLSelectElement;
+    if (statusSelect) statusSelect.value = value;
     setPage(1);
   };
 
@@ -365,18 +454,37 @@ export default function WaybillsPage() {
         {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3">
           <div className="w-full sm:max-w-md">
-            <SearchBar value={rawSearch} onChange={handleSearch}
-              placeholder="Search waybill no., customer, receiver…" />
+            <SearchBar 
+              value="" 
+              onChange={handleSearch}
+              placeholder="Search waybill no., customer, receiver…" 
+            />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
-            <FilterSelect value={String(filters.status ?? "")}
-              onChange={v => handleFilter("status", v)} options={STATUS_OPTIONS} placeholder="All Statuses" />
-            <FilterSelect value={customerFilter}
-              onChange={v => { setCustomerFilter(v); setPage(1); }} options={customerOptions} placeholder="All Customers" />
-            <FilterSelect value={driverFilter}
-              onChange={v => { setDriverFilter(v); setPage(1); }} options={driverOptions} placeholder="All Drivers" />
-            <FilterSelect value={routeFilter}
-              onChange={v => { setRouteFilter(v); setPage(1); }} options={routeOptions} placeholder="All Routes" />
+            <FilterSelect 
+              value="" 
+              onChange={handleStatusFilter} 
+              options={STATUS_OPTIONS} 
+              placeholder="All Statuses" 
+            />
+            <FilterSelect 
+              value={customerFilter}
+              onChange={v => { setCustomerFilter(v); setPage(1); }} 
+              options={customerOptions} 
+              placeholder="All Customers" 
+            />
+            <FilterSelect 
+              value={driverFilter}
+              onChange={v => { setDriverFilter(v); setPage(1); }} 
+              options={driverOptions} 
+              placeholder="All Drivers" 
+            />
+            <FilterSelect 
+              value={routeFilter}
+              onChange={v => { setRouteFilter(v); setPage(1); }} 
+              options={routeOptions} 
+              placeholder="All Routes" 
+            />
             <div className="col-span-2 sm:col-span-1">
               <QuickDateSelect onSelect={handleQuickDateSelect} />
             </div>
@@ -386,27 +494,21 @@ export default function WaybillsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <DateRangeFilter
-                from={filters.dateRange.from}
-                to={filters.dateRange.to}
-                onFromChange={v => {
-                  handleDateRange({ ...filters.dateRange, from: v });
-                  setPage(1);
-                }}
-                onToChange={v => {
-                  handleDateRange({ ...filters.dateRange, to: v });
-                  setPage(1);
-                }}
+                from={dateFrom}
+                to={dateTo}
+                onFromChange={handleDateFromChange}
+                onToChange={handleDateToChange}
               />
             </div>
-            <ResetButton onClick={handleReset} active={anyActive} />
+            <ResetButton onClick={handleReset} active={hasActiveFilters} />
           </div>
         </div>
 
         {/* Active filters indicator */}
-        {anyActive && (
+        {hasActiveFilters && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-blue-600">
-              {filtered.length} of {total} records match
+              {total} of {waybills.length} records match
             </span>
             {hasDateRangeActive && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-600">
@@ -426,9 +528,9 @@ export default function WaybillsPage() {
                     ["driver","Driver"], ["route","Route"], ["parcels","Parcels"],
                     ["status","Status"], ["date","Date"],
                 ] as [keyof Waybill, string][]).map(([key, label]) => (
-                  <th key={key} onClick={() => handleSort(key)}
-                    className="cursor-pointer select-none whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 hover:bg-gray-100">
-                    {label}<SortIcon sortState={sort} column={key} />
+                  <th key={key} 
+                    className="select-none whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    {label}
                   </th>
                 ))}
                 <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600">
@@ -454,13 +556,11 @@ export default function WaybillsPage() {
                     <td className="px-5 py-3.5 text-gray-500">{wb.date}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
-                        {/* Edit — all authenticated users */}
                         <button
                           onClick={() => { setEditTarget(wb); setView("edit"); }}
                           className="flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-blue-200 hover:text-blue-600 transition-colors">
                           <Pencil className="h-3 w-3" /> 
                         </button>
-                        {/* Delete — Super Admin only */}
                         {isSuperAdmin && (
                           <button
                             onClick={() => setDeleteTarget(wb)}
@@ -491,9 +591,9 @@ export default function WaybillsPage() {
               <p className="text-sm font-medium text-gray-900">{wb.customer}</p>
               <p className="text-xs text-gray-500">To: {wb.receiver}</p>
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-600">
-                <div className="flex items-center gap-1.5"><User    className="h-3.5 w-3.5 text-gray-400" />{wb.driver}</div>
-                <div className="flex items-center gap-1.5"><MapPin   className="h-3.5 w-3.5 text-gray-400" /><span className="font-mono">{wb.route}</span></div>
-                <div className="flex items-center gap-1.5"><Package  className="h-3.5 w-3.5 text-gray-400" />{wb.parcels} parcels</div>
+                <div className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 text-gray-400" />{wb.driver}</div>
+                <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-gray-400" /><span className="font-mono">{wb.route}</span></div>
+                <div className="flex items-center gap-1.5"><Package className="h-3.5 w-3.5 text-gray-400" />{wb.parcels} parcels</div>
                 <div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-gray-400" />{wb.date}</div>
               </div>
               <div className="mt-3 flex gap-2">
@@ -514,8 +614,14 @@ export default function WaybillsPage() {
 
         {/* Pagination */}
         <div className="mt-4 overflow-x-auto">
-          <Pagination page={page} totalPages={totalPages} pageSize={pageSize}
-            total={filtered.length} onPage={setPage} onPageSize={handlePageSize} />
+          <Pagination 
+            page={page} 
+            totalPages={totalPages} 
+            pageSize={pageSize}
+            total={total} 
+            onPage={setPage} 
+            onPageSize={(size) => { setPageSize(size); setPage(1); }} 
+          />
         </div>
       </div>
 
