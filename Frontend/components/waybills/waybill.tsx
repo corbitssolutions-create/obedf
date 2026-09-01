@@ -402,6 +402,12 @@ export default function WaybillsPage() {
     setPage(1);
   };
 
+  // Handle waybill edit - can be called from double click or edit button
+  const handleEditWaybill = useCallback((waybill: Waybill) => {
+    setEditTarget(waybill);
+    setView("edit");
+  }, []);
+
   /* ── Render create / edit form ── */
   if (view === "create") {
     return (
@@ -545,7 +551,13 @@ export default function WaybillsPage() {
                   <tr key={wb._id}
                     className={`text-sm text-gray-700 hover:bg-gray-50/60 ${idx !== paginated.length - 1 ? "border-b border-gray-50" : ""}`}>
                     <td className="px-5 py-3.5">
-                      <span className="font-semibold text-blue-600">{wb.id}</span>
+                      <span 
+                        className="font-semibold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline transition-colors"
+                        onDoubleClick={() => handleEditWaybill(wb)}
+                        title="Double-click to edit"
+                      >
+                        {wb.id}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 font-medium">{wb.customer}</td>
                     <td className="px-5 py-3.5">{wb.receiver}</td>
@@ -557,14 +569,18 @@ export default function WaybillsPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => { setEditTarget(wb); setView("edit"); }}
-                          className="flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-blue-200 hover:text-blue-600 transition-colors">
+                          onClick={() => handleEditWaybill(wb)}
+                          className="flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-blue-200 hover:text-blue-600 transition-colors"
+                          title="Edit waybill"
+                        >
                           <Pencil className="h-3 w-3" /> 
                         </button>
                         {isSuperAdmin && (
                           <button
                             onClick={() => setDeleteTarget(wb)}
-                            className="flex items-center gap-1 rounded-md border border-red-100 px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors">
+                            className="flex items-center gap-1 rounded-md border border-red-100 px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors"
+                            title="Delete waybill"
+                          >
                             <Trash2 className="h-3 w-3" /> 
                           </button>
                         )}
@@ -585,7 +601,13 @@ export default function WaybillsPage() {
           ) : paginated.map(wb => (
             <div key={wb._id} className="rounded-xl border border-gray-100 p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
-                <span className="text-sm font-semibold text-blue-600">{wb.id}</span>
+                <span 
+                  className="text-sm font-semibold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline transition-colors"
+                  onDoubleClick={() => handleEditWaybill(wb)}
+                  title="Double-click to edit"
+                >
+                  {wb.id}
+                </span>
                 <StatusBadge status={wb.status} />
               </div>
               <p className="text-sm font-medium text-gray-900">{wb.customer}</p>
@@ -597,13 +619,16 @@ export default function WaybillsPage() {
                 <div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-gray-400" />{wb.date}</div>
               </div>
               <div className="mt-3 flex gap-2">
-                <button onClick={() => { setEditTarget(wb); setView("edit"); }}
-                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                <button 
+                  onClick={() => handleEditWaybill(wb)}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
                   <Pencil className="h-3.5 w-3.5" /> Edit
                 </button>
                 {isSuperAdmin && (
                   <button onClick={() => setDeleteTarget(wb)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-red-100 py-2 text-xs font-medium text-red-500 hover:bg-red-50">
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-red-100 py-2 text-xs font-medium text-red-500 hover:bg-red-50"
+                  >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
                 )}
