@@ -30,7 +30,7 @@ interface Waybill {
 }
 
 const STATUS_OPTIONS = [
-  { label: "To Deliver",  value: "Active"      },
+  { label: "To Deliver",  value: "To Deliver"      },
   { label: "Delivered",   value: "Delivered"   },
   { label: "POD",      value: "POD"      },
     { label: "Partial PODed",      value: "Partial PODed"      },
