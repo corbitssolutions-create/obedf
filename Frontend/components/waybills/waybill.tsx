@@ -33,11 +33,10 @@ const STATUS_OPTIONS = [
   { label: "To Deliver",  value: "To Deliver"      },
   { label: "Delivered",   value: "Delivered"   },
   { label: "POD",      value: "POD"      },
-    { label: "Partial PODed",      value: "Partial PODed"      },
-    { label: "To Deliver",      value: "To Deliver"      },
-    { label: "To Manifest",      value: "To Manifest"      },
-    { label: "On Delivery",      value: "On Delivery"      },
-
+  { label: "Partial PODed",      value: "Partial PODed"      },
+  { label: "To Deliver",      value: "To Deliver"      },
+  { label: "To Manifest",      value: "To Manifest"      },
+  { label: "On Delivery",      value: "On Delivery"      },
 ];
 
 /* ─── Delete Confirmation Dialog ────────────────────────────────────────── */
@@ -285,9 +284,33 @@ export default function WaybillsPage() {
     },
   });
 
+  // Track if any date range filter is active
+  const hasDateRangeActive = !!(filters.dateRange?.from || filters.dateRange?.to);
+  
+  // Check if any filter is active (including date range)
+  const anyActive = hasActiveFilters || 
+                    !!customerFilter || 
+                    !!driverFilter || 
+                    !!routeFilter ||
+                    hasDateRangeActive;
+
+  // Reset all filters including date range
   const handleReset = () => {
     resetFilters();
-    setCustomerFilter(""); setDriverFilter(""); setRouteFilter("");
+    setCustomerFilter(""); 
+    setDriverFilter(""); 
+    setRouteFilter("");
+    // Clear date range if it's active
+    if (hasDateRangeActive) {
+      handleDateRange({ from: "", to: "" });
+    }
+  };
+
+  // Handle quick date selection
+  const handleQuickDateSelect = (from: string, to: string) => {
+    handleDateRange({ from, to });
+    // Reset to page 1 when applying date filter
+    setPage(1);
   };
 
   /* ── Render create / edit form ── */
@@ -316,7 +339,6 @@ export default function WaybillsPage() {
   const customerOptions = Array.from(new Set(waybills.map(w => w.customer))).map(c => ({ label: c, value: c }));
   const driverOptions   = Array.from(new Set(waybills.map(w => w.driver))).map(d => ({ label: d, value: d }));
   const routeOptions    = Array.from(new Set(waybills.map(w => w.route))).map(r => ({ label: r, value: r }));
-  const anyActive       = hasActiveFilters || !!customerFilter || !!driverFilter || !!routeFilter;
 
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center bg-white">
@@ -356,7 +378,7 @@ export default function WaybillsPage() {
             <FilterSelect value={routeFilter}
               onChange={v => { setRouteFilter(v); setPage(1); }} options={routeOptions} placeholder="All Routes" />
             <div className="col-span-2 sm:col-span-1">
-              <QuickDateSelect onSelect={(from, to) => handleDateRange({ from, to })} />
+              <QuickDateSelect onSelect={handleQuickDateSelect} />
             </div>
           </div>
           
@@ -366,18 +388,33 @@ export default function WaybillsPage() {
               <DateRangeFilter
                 from={filters.dateRange.from}
                 to={filters.dateRange.to}
-                onFromChange={v => handleDateRange({ ...filters.dateRange, from: v })}
-                onToChange={v => handleDateRange({ ...filters.dateRange, to: v })}
+                onFromChange={v => {
+                  handleDateRange({ ...filters.dateRange, from: v });
+                  setPage(1);
+                }}
+                onToChange={v => {
+                  handleDateRange({ ...filters.dateRange, to: v });
+                  setPage(1);
+                }}
               />
             </div>
             <ResetButton onClick={handleReset} active={anyActive} />
           </div>
         </div>
 
+        {/* Active filters indicator */}
         {anyActive && (
-          <p className="mb-3 text-xs font-medium text-blue-600">
-            {filtered.length} of {total} records match
-          </p>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-blue-600">
+              {filtered.length} of {total} records match
+            </span>
+            {hasDateRangeActive && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-600">
+                <Calendar className="h-3 w-3" />
+                Date range active
+              </span>
+            )}
+          </div>
         )}
 
         {/* ── Desktop table ── */}
