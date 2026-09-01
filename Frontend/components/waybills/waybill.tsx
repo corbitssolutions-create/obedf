@@ -102,6 +102,7 @@ export default function WaybillsPage() {
   const [loading,    setLoading]    = useState(true);
   const [view,       setView]       = useState<"list" | "create" | "edit">("list");
   const [editTarget, setEditTarget] = useState<Waybill | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state for save
 
   // Delete state
   const [deleteTarget,  setDeleteTarget]  = useState<Waybill | null>(null);
@@ -219,6 +220,9 @@ export default function WaybillsPage() {
 
   /* ── Create ── */
   const handleCreate = async (data: WaybillFormData) => {
+    if (isSubmitting) return; // Prevent multiple submissions
+    
+    setIsSubmitting(true);
     try {
       const result = await apiPost<{ success: boolean; error?: string }>(
         "/api/waybills",
@@ -233,12 +237,17 @@ export default function WaybillsPage() {
       }
     } catch (err: any) {
       toastError("Create Failed", err.message || "An unexpected error occurred.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   /* ── Edit ── */
   const handleEdit = async (data: WaybillFormData) => {
     if (!editTarget) return;
+    if (isSubmitting) return; // Prevent multiple submissions
+    
+    setIsSubmitting(true);
     try {
       const result = await apiPut<{ success: boolean; error?: string }>(
         `/api/waybills/${editTarget._id}`,
@@ -254,12 +263,16 @@ export default function WaybillsPage() {
       }
     } catch (err: any) {
       toastError("Update Failed", err.message || "An unexpected error occurred.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   /* ── Delete ── */
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
+    if (deleteLoading) return; // Prevent multiple deletions
+    
     setDeleteLoading(true);
     try {
       await apiDelete(`/api/waybills/${deleteTarget._id}`);
@@ -406,13 +419,21 @@ export default function WaybillsPage() {
   const handleEditWaybill = useCallback((waybill: Waybill) => {
     setEditTarget(waybill);
     setView("edit");
+    setIsSubmitting(false); // Reset submitting state when opening edit
   }, []);
 
   /* ── Render create / edit form ── */
   if (view === "create") {
     return (
       <>
-        <CreateWaybillPage onBack={() => setView("list")} onSubmit={handleCreate} />
+        <CreateWaybillPage 
+          onBack={() => {
+            setView("list");
+            setIsSubmitting(false);
+          }} 
+          onSubmit={handleCreate}
+          isLoading={isSubmitting}
+        />
         <ToastContainer toasts={toasts} onRemove={remove} />
       </>
     );
@@ -421,9 +442,14 @@ export default function WaybillsPage() {
     return (
       <>
         <CreateWaybillPage
-          onBack={() => { setView("list"); setEditTarget(null); }}
+          onBack={() => { 
+            setView("list"); 
+            setEditTarget(null);
+            setIsSubmitting(false);
+          }}
           onSubmit={handleEdit}
           editData={editTarget.raw}
+          isLoading={isSubmitting}
         />
         <ToastContainer toasts={toasts} onRemove={remove} />
       </>
