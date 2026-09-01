@@ -359,12 +359,16 @@ export default function WaybillsPage() {
               <QuickDateSelect onSelect={(from, to) => handleDateRange({ from, to })} />
             </div>
           </div>
+          
+          {/* Date Range Filter with Labels */}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="w-full sm:w-auto">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <label className="text-xs font-medium text-gray-600">From Date:</label>
               <DateRangeFilter
-                from={filters.dateRange.from} to={filters.dateRange.to}
+                from={filters.dateRange.from}
+                to={filters.dateRange.to}
                 onFromChange={v => handleDateRange({ ...filters.dateRange, from: v })}
-                onToChange={v   => handleDateRange({ ...filters.dateRange, to:   v })}
+                onToChange={v => handleDateRange({ ...filters.dateRange, to: v })}
               />
             </div>
             <ResetButton onClick={handleReset} active={anyActive} />
