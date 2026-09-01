@@ -78,7 +78,7 @@ export function DateRangeFilter({ from, to, onFromChange, onToChange }: DateRang
         className="rounded-lg border border-gray-200 bg-white py-2 px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition"
       />
       <span className="text-gray-400 text-sm">–</span>
-              <label className="text-xs font-medium text-gray-600">To Date:</label>
+              <label className="text-xs font-medium text-gray-600"> To Date:</label>
 
       <input
         type="date"
