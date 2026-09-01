@@ -36,6 +36,7 @@ const STATUS_OPTIONS = [
     { label: "Partial PODed",      value: "Partial PODed"      },
     { label: "To Deliver",      value: "To Deliver"      },
     { label: "To Manifest",      value: "To Manifest"      },
+    { label: "On Delivery",      value: "On Delivery"      },
 
 ];
 
