@@ -252,7 +252,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
   const [masterDefaultCharges,setMasterDefaultCharges]= useState<ExtraChargeRow[]>([]);
 
   // ── Branch state ─────────────────────────────────────────────────────────
-  // From Branch - detected from sender postal code
+  // From Branch - ONLY detected from sender postal code (NO default login branch)
   const [fromBranch, setFromBranch] = useState<{_id:string;code:string;name:string}|null>(null);
   const [fromBranchLoading, setFromBranchLoading] = useState(false);
   const [fromBranchError,   setFromBranchError]   = useState<string>("");
@@ -278,6 +278,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   /* ── Initial data load ── */
   useEffect(() => {
+    // Load customers and other data
     Promise.all([
       apiGet<any>("/api/customers/lookup"),
       apiGet<any>("/api/billing-accounts/lookup"),
@@ -429,7 +430,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
     }
   }, [billingAccounts, masterDefaultCharges]);
 
-  /* ── From Branch lookup by sender postal code ── */
+  /* ── From Branch lookup by sender postal code (ONLY this, NO default) ── */
   const lookupFromBranch = useCallback(async (postalCode: string) => {
     const code = postalCode.trim();
     if (!code) { 
@@ -486,7 +487,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
 
   const updateAddr = (which: "senderAddress"|"receiverAddress", field: keyof Address, val: string) => {
     setForm(p => ({ ...p, [which]: { ...p[which], [field]: val } }));
-    // When sender postal code changes → look up From Branch
+    // When sender postal code changes → look up From Branch (ONLY this)
     if (which === "senderAddress" && field === "postalCode") {
       lookupFromBranch(val);
     }
@@ -505,7 +506,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
       senderContact:       c?.contact       ?? "",
       senderAddress:       c?.address       ?? emptyAddress(),
     }));
-    // Trigger From Branch lookup when customer's postal code is known
+    // Trigger From Branch lookup when customer's postal code is known (ONLY this)
     if (c?.address?.postalCode) {
       lookupFromBranch(c.address.postalCode);
     }
@@ -777,7 +778,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
               </div>
             </div>
 
-            {/* ── From Branch — auto from sender postal code ── */}
+            {/* ── From Branch — ONLY from sender postal code (NO default) ── */}
             <WField label="From Branch (Collection)">
               <div className={`${inputCls} cursor-not-allowed min-h-[38px] flex items-center gap-2 ${
                 fromBranch ? "bg-gray-50" :
