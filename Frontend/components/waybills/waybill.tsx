@@ -102,7 +102,7 @@ export default function WaybillsPage() {
   const [loading,    setLoading]    = useState(true);
   const [view,       setView]       = useState<"list" | "create" | "edit">("list");
   const [editTarget, setEditTarget] = useState<Waybill | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state for save
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Delete state
   const [deleteTarget,  setDeleteTarget]  = useState<Waybill | null>(null);
@@ -110,8 +110,7 @@ export default function WaybillsPage() {
 
   // Filter state
   const [customerFilter, setCustomerFilter] = useState("");
-  const [driverFilter,   setDriverFilter]   = useState("");
-  const [routeFilter,    setRouteFilter]    = useState("");
+  // Removed driverFilter and routeFilter states
   
   // Date range filter state - managed separately for proper filtering
   const [dateFrom, setDateFrom] = useState("");
@@ -298,9 +297,7 @@ export default function WaybillsPage() {
         w.id.toLowerCase().includes(term) ||
         w.customer.toLowerCase().includes(term) ||
         w.receiver.toLowerCase().includes(term) ||
-        w.driver.toLowerCase().includes(term) ||
-        w.vehicle.toLowerCase().includes(term) ||
-        w.route.toLowerCase().includes(term)
+        w.vehicle.toLowerCase().includes(term)
       );
     }
 
@@ -315,15 +312,7 @@ export default function WaybillsPage() {
       result = result.filter(w => w.customer === customerFilter);
     }
 
-    // Driver filter
-    if (driverFilter) {
-      result = result.filter(w => w.driver === driverFilter);
-    }
-
-    // Route filter
-    if (routeFilter) {
-      result = result.filter(w => w.route === routeFilter);
-    }
+    // Removed driver and route filters
 
     // Date range filter - properly filter by date
     if (dateFrom || dateTo) {
@@ -353,7 +342,7 @@ export default function WaybillsPage() {
     // (sorting logic here if needed)
 
     return result;
-  }, [waybills, customerFilter, driverFilter, routeFilter, dateFrom, dateTo]);
+  }, [waybills, customerFilter, dateFrom, dateTo]);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -365,7 +354,7 @@ export default function WaybillsPage() {
   const paginated = filteredData.slice(start, start + pageSize);
 
   // Track active filters
-  const hasActiveFilters = !!(dateFrom || dateTo || customerFilter || driverFilter || routeFilter);
+  const hasActiveFilters = !!(dateFrom || dateTo || customerFilter);
   const hasDateRangeActive = !!(dateFrom || dateTo);
 
   // Reset function
@@ -373,8 +362,6 @@ export default function WaybillsPage() {
     setDateFrom("");
     setDateTo("");
     setCustomerFilter("");
-    setDriverFilter("");
-    setRouteFilter("");
     setPage(1);
     // Also reset search and status if needed
     const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -457,21 +444,11 @@ export default function WaybillsPage() {
   }
 
   /* ── Option lists ── */
-  // FIX: Filter out empty/placeholder values and sort the options
+  // Filter out empty/placeholder values and sort the options
   const customerOptions = Array.from(new Set(waybills.map(w => w.customer)))
     .filter(c => c && c !== "—")
     .sort()
     .map(c => ({ label: c, value: c }));
-  
-  const driverOptions = Array.from(new Set(waybills.map(w => w.driver)))
-    .filter(d => d && d !== "—")
-    .sort()
-    .map(d => ({ label: d, value: d }));
-  
-  const routeOptions = Array.from(new Set(waybills.map(w => w.route)))
-    .filter(r => r && r !== "—") // Remove empty and placeholder values
-    .sort()
-    .map(r => ({ label: r, value: r }));
 
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center bg-white">
@@ -517,18 +494,7 @@ export default function WaybillsPage() {
               options={customerOptions} 
               placeholder="All Customers" 
             />
-            <FilterSelect 
-              value={driverFilter}
-              onChange={v => { setDriverFilter(v); setPage(1); }} 
-              options={driverOptions} 
-              placeholder="All Drivers" 
-            />
-            <FilterSelect 
-              value={routeFilter}
-              onChange={v => { setRouteFilter(v); setPage(1); }} 
-              options={routeOptions} 
-              placeholder="All Routes" 
-            />
+            {/* Removed Driver and Route Filters */}
             <div className="col-span-2 sm:col-span-1">
               <QuickDateSelect onSelect={handleQuickDateSelect} />
             </div>
@@ -565,11 +531,11 @@ export default function WaybillsPage() {
 
         {/* ── Desktop table ── */}
         <div className="hidden overflow-x-auto rounded-xl border border-gray-100 md:block">
-          <table className="w-full min-w-[1000px] text-left">
+          <table className="w-full min-w-[800px] text-left">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/70">
                 {([ ["id","Waybill No."], ["customer","Customer"], ["receiver","Receiver"],
-                    ["driver","Driver"], ["route","Route"], ["parcels","Parcels"],
+                    ["parcels","Parcels"],
                     ["status","Status"], ["date","Date"],
                 ] as [keyof Waybill, string][]).map(([key, label]) => (
                   <th key={key} 
@@ -584,7 +550,7 @@ export default function WaybillsPage() {
             </thead>
             <tbody>
               {paginated.length === 0
-                ? <EmptyState message="No waybills match your filters." colSpan={9} />
+                ? <EmptyState message="No waybills match your filters." colSpan={7} />
                 : paginated.map((wb, idx) => (
                   <tr key={wb._id}
                     className={`text-sm text-gray-700 hover:bg-gray-50/60 ${idx !== paginated.length - 1 ? "border-b border-gray-50" : ""}`}>
@@ -599,8 +565,6 @@ export default function WaybillsPage() {
                     </td>
                     <td className="px-5 py-3.5 font-medium">{wb.customer}</td>
                     <td className="px-5 py-3.5">{wb.receiver}</td>
-                    <td className="px-5 py-3.5 text-gray-500">{wb.driver}</td>
-                    <td className="px-5 py-3.5 font-mono text-xs text-gray-600">{wb.route}</td>
                     <td className="px-5 py-3.5 text-center">{wb.parcels}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={wb.status} /></td>
                     <td className="px-5 py-3.5 text-gray-500">{wb.date}</td>
@@ -651,8 +615,6 @@ export default function WaybillsPage() {
               <p className="text-sm font-medium text-gray-900">{wb.customer}</p>
               <p className="text-xs text-gray-500">To: {wb.receiver}</p>
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-600">
-                <div className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 text-gray-400" />{wb.driver}</div>
-                <div className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-gray-400" /><span className="font-mono">{wb.route}</span></div>
                 <div className="flex items-center gap-1.5"><Package className="h-3.5 w-3.5 text-gray-400" />{wb.parcels} parcels</div>
                 <div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5 text-gray-400" />{wb.date}</div>
               </div>
