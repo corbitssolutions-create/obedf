@@ -666,7 +666,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
           </button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-              {isEditMode ? `Edit Waybill — ${editData?.waybillNo ?? ""}` : "Create Waybill"}
+              {isEditMode ? ` ${editData?.waybillNo ?? ""}` : "Create Waybill"}
             </h1>
             <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
               <button onClick={onBack} className="hover:text-gray-600">Waybills</button>
