@@ -31,11 +31,10 @@ interface Waybill {
 
 const STATUS_OPTIONS = [
   { label: "To Deliver",  value: "Active"      },
-  { label: "Draft",       value: "Draft"       },
   { label: "Delivered",   value: "Delivered"   },
-  { label: "Outstanding", value: "Outstanding" },
-  { label: "Failed",      value: "Failed"      },
-  { label: "Cancelled",   value: "Cancelled"   },
+  { label: "POD",      value: "POD"      },
+    { label: "Partial POD",      value: "Partial POD"      },
+
 ];
 
 /* ─── Delete Confirmation Dialog ────────────────────────────────────────── */
