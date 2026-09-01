@@ -678,7 +678,7 @@ export default function CreateWaybillPage({ onBack, onSubmit, editData }: Create
         <div className="flex flex-wrap gap-2">
           <button onClick={handleClear}
             className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-50">
-            Clear
+            Undo
           </button>
           {!isEditMode && (
             <button onClick={saveDraft}
