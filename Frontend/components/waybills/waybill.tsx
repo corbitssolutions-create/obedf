@@ -110,7 +110,7 @@ export default function WaybillsPage() {
 
   // Filter state
   const [customerFilter, setCustomerFilter] = useState("");
-  // Removed driverFilter and routeFilter states
+  const [receiverFilter, setReceiverFilter] = useState(""); // Added receiver filter
   
   // Date range filter state - managed separately for proper filtering
   const [dateFrom, setDateFrom] = useState("");
@@ -312,7 +312,10 @@ export default function WaybillsPage() {
       result = result.filter(w => w.customer === customerFilter);
     }
 
-    // Removed driver and route filters
+    // Receiver filter
+    if (receiverFilter) {
+      result = result.filter(w => w.receiver === receiverFilter);
+    }
 
     // Date range filter - properly filter by date
     if (dateFrom || dateTo) {
@@ -342,7 +345,7 @@ export default function WaybillsPage() {
     // (sorting logic here if needed)
 
     return result;
-  }, [waybills, customerFilter, dateFrom, dateTo]);
+  }, [waybills, customerFilter, receiverFilter, dateFrom, dateTo]);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -354,7 +357,7 @@ export default function WaybillsPage() {
   const paginated = filteredData.slice(start, start + pageSize);
 
   // Track active filters
-  const hasActiveFilters = !!(dateFrom || dateTo || customerFilter);
+  const hasActiveFilters = !!(dateFrom || dateTo || customerFilter || receiverFilter);
   const hasDateRangeActive = !!(dateFrom || dateTo);
 
   // Reset function
@@ -362,6 +365,7 @@ export default function WaybillsPage() {
     setDateFrom("");
     setDateTo("");
     setCustomerFilter("");
+    setReceiverFilter("");
     setPage(1);
     // Also reset search and status if needed
     const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -450,6 +454,11 @@ export default function WaybillsPage() {
     .sort()
     .map(c => ({ label: c, value: c }));
 
+  const receiverOptions = Array.from(new Set(waybills.map(w => w.receiver)))
+    .filter(r => r && r !== "—")
+    .sort()
+    .map(r => ({ label: r, value: r }));
+
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center bg-white">
       <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 border-blue-600" />
@@ -494,7 +503,12 @@ export default function WaybillsPage() {
               options={customerOptions} 
               placeholder="All Customers" 
             />
-            {/* Removed Driver and Route Filters */}
+            <FilterSelect 
+              value={receiverFilter}
+              onChange={v => { setReceiverFilter(v); setPage(1); }} 
+              options={receiverOptions} 
+              placeholder="All Receivers" 
+            />
             <div className="col-span-2 sm:col-span-1">
               <QuickDateSelect onSelect={handleQuickDateSelect} />
             </div>
